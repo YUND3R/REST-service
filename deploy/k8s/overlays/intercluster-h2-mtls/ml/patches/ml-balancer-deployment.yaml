@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-balancer
+spec:
+  template:
+    spec:
+      containers:
+        - name: nginx
+          ports:
+            - containerPort: 80
+            - containerPort: 443
+          volumeMounts:
+            - name: tls-server
+              mountPath: /etc/nginx/tls/server
+              readOnly: true
+            - name: tls-gateway-client-ca
+              mountPath: /etc/nginx/tls/gateway-client-ca
+              readOnly: true
+            - name: conf
+              mountPath: /etc/nginx/conf.d/ml-common-locations.inc
+              subPath: ml-common-locations.inc
+      volumes:
+        - name: tls-server
+          secret:
+            secretName: ml-balancer-server-tls
+        - name: tls-gateway-client-ca
+          secret:
+            secretName: gateway-client-ca

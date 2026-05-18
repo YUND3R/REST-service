@@ -1,0 +1,28 @@
+Топология: два кластера (edge / gpu) как в deploy/k8s/clusters/README.txt, плюс класс GPU для rtx5000 и резерва a100.
+
+Кластер A — CPU (gateway, auth):
+  kubectl label node <cpu-node> edu-ml.io/tier=edge --overwrite
+
+Кластер B — основные GPU-ноды (RTX 5000 / A5000 и т.п. — «пять тысяч» в вашем сетапе):
+  kubectl label node <gpu-main> edu-ml.io/tier=gpu --overwrite
+  kubectl label node <gpu-main> edu-ml.io/gpu-class=rtx5000 --overwrite
+
+Резервная GPU-нода (A100), куда планировщик уведёт под при сбое основной или при нехватке места на rtx5000:
+  kubectl label node <gpu-a100> edu-ml.io/tier=gpu --overwrite
+  kubectl label node <gpu-a100> edu-ml.io/gpu-class=a100 --overwrite
+
+Taint на всех GPU-нодах (как обычно):
+  kubectl taint nodes <gpu-node> nvidia.com/gpu:NoSchedule --overwrite
+
+Поды code-analyze и task-generate могут работать только на нодах с gpu-class rtx5000 или a100;
+предпочтение при планировании — rtx5000.
+
+Внутренний nginx ml-balancer (между gateway и ML) — только tier=gpu + тот же taint; gpu-class не требуется (может встать на любую GPU-ноду).
+PVC моделей: при переносе пода на другую ноду учитывайте зону/ReadWriteOnce (при необходимости дублируйте том или используйте RWX).
+
+Применение (сначала кластер B, затем A):
+  kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/gpu-pool-rtx5000-a100/ml | kubectl apply -f -
+  kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/gpu-pool-rtx5000-a100/edge | kubectl apply -f -
+
+Чистый split без разделения классов GPU:
+  см. overlays/cpu-gpu-topology/NODE_LABELS.txt

@@ -1,0 +1,58 @@
+[project]
+name = "api-request-gateway"
+version = "1.0.0"
+description = "HTTP gateway: accepts API requests, queues async ML work"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "redis[hiredis]>=5.2.0",
+    "httpx>=0.28.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "python-multipart>=0.0.17",
+    "orjson>=3.10.0",
+    "greenlet>=3.1.0",
+    "torch>=2.4.0",
+    "transformers>=4.46.0",
+    "accelerate>=1.1.0",
+    "bitsandbytes>=0.44.0",
+    "safetensors>=0.4.5",
+    "sentencepiece>=0.2.0",
+    "protobuf>=5.28.0",
+    "boto3>=1.35.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["gateway", "workers", "models", "db", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["db", "gateway", "models", "workers"]
+
+[tool.ruff.lint.per-file-ignores]
+"gateway/routers/*.py" = ["B008"]

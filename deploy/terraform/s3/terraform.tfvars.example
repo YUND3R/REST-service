@@ -1,0 +1,2 @@
+aws_region  = "eu-central-1"
+bucket_name = "edu-ml-user-data-REPLACE-WITH-UNIQUE-NAME"

@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: edu-ml
+resources:
+  - ../../../clusters/ml
+patches:
+  - path: patches/ml-balancer-deployment.yaml
+  - path: patches/ml-balancer-service.yaml
+configMapGenerator:
+  - name: ml-balancer-nginx-conf
+    behavior: replace
+    files:
+      - default.conf=files/default.conf
+      - ml-common-locations.inc=files/ml-common-locations.inc
+generatorOptions:
+  disableNameSuffixHash: true

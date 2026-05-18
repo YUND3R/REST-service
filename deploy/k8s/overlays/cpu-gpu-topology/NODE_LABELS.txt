@@ -1,0 +1,18 @@
+Топология prod: два Kubernetes-кластера (см. deploy/k8s/clusters/README.txt).
+Разметка метками выполняется в соответствующем кластере и контексте kubectl.
+
+Кластер A — edge (CPU: gateway / auth внутри этого кластера):
+  kubectl label node <имя-cpu-ноды> edu-ml.io/tier=edge --overwrite
+
+Кластер B — ML (GPU: code-analyze, task-generate, ml-balancer, Redis tier):
+  kubectl label node <имя-gpu-ноды> edu-ml.io/tier=gpu --overwrite
+  kubectl taint nodes <gpu-node> nvidia.com/gpu:NoSchedule --overwrite
+
+Применение overlay (сначала B, затем A; два разных kubeconfig/контекста):
+  kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/cpu-gpu-topology/ml | kubectl apply -f -
+  kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/cpu-gpu-topology/edge | kubectl apply -f -
+
+Базовые манифесты без патчей нод кластеры:
+  deploy/k8s/clusters/ml и deploy/k8s/clusters/edge
+
+Разделение классов GPU (rtx5000 / a100) — overlay gpu-pool-rtx5000-a100 (см. его NODE_LABELS.txt).

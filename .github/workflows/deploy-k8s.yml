@@ -1,0 +1,104 @@
+name: Deploy Kubernetes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - "deploy/k8s/**"
+      - ".github/workflows/deploy-k8s.yml"
+  workflow_run:
+    workflows: [CD]
+    types: [completed]
+    branches: [main, master]
+
+concurrency:
+  group: k8s-deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  KUSTOMIZE_LOAD: LoadRestrictionsNone
+
+jobs:
+  deploy-ml:
+    name: Cluster ML (workers + redis tier)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    environment:
+      name: k8s-ml
+      url: ${{ vars.K8S_ML_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.31.2"
+
+      - name: Kubeconfig (ML cluster)
+        env:
+          KUBE: ${{ secrets.KUBECONFIG_ML }}
+        run: |
+          mkdir -p ~/.kube
+          if [ -z "$KUBE" ]; then
+            echo "::error::Secret KUBECONFIG_ML is not set (use GitHub Environments → k8s-ml or repository secrets)."
+            exit 1
+          fi
+          printf '%s\n' "$KUBE" > ~/.kube/config
+        shell: bash
+
+      - name: Apply kustomize (clusters/ml)
+        run: |
+          set -euo pipefail
+          kubectl kustomize --load-restrictor="${KUSTOMIZE_LOAD}" deploy/k8s/clusters/ml | kubectl apply -f -
+
+      - name: Wait for rollouts (best effort)
+        continue-on-error: true
+        run: |
+          kubectl -n edu-ml rollout status deployment/ml-balancer --timeout=120s || true
+          kubectl -n edu-ml rollout status deployment/code-analyze --timeout=300s || true
+          kubectl -n edu-ml rollout status deployment/task-generate --timeout=300s || true
+
+  deploy-edge:
+    name: Cluster edge (ingress + gateway tier)
+    runs-on: ubuntu-latest
+    needs: deploy-ml
+    if: |
+      always() && needs.deploy-ml.result == 'success' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    environment:
+      name: k8s-edge
+      url: ${{ vars.K8S_EDGE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.31.2"
+
+      - name: Kubeconfig (edge cluster)
+        env:
+          KUBE: ${{ secrets.KUBECONFIG_EDGE }}
+        run: |
+          mkdir -p ~/.kube
+          if [ -z "$KUBE" ]; then
+            echo "::error::Secret KUBECONFIG_EDGE is not set (use GitHub Environments → k8s-edge or repository secrets)."
+            exit 1
+          fi
+          printf '%s\n' "$KUBE" > ~/.kube/config
+        shell: bash
+
+      - name: Apply kustomize (clusters/edge)
+        run: |
+          set -euo pipefail
+          kubectl kustomize --load-restrictor="${KUSTOMIZE_LOAD}" deploy/k8s/clusters/edge | kubectl apply -f -
+
+      - name: Wait for rollouts (best effort)
+        continue-on-error: true
+        run: |
+          kubectl -n edu-ml rollout status deployment/gateway --timeout=120s || true
+          kubectl -n edu-ml rollout status deployment/edge-balancer --timeout=120s || true

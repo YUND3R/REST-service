@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-generate
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: edu-ml.io/tier
+                    operator: In
+                    values:
+                      - gpu
+                  - key: edu-ml.io/gpu-class
+                    operator: In
+                    values:
+                      - rtx5000
+                      - a100
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: edu-ml.io/gpu-class
+                    operator: In
+                    values:
+                      - rtx5000
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule

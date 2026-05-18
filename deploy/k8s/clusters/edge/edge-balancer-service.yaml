@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-balancer
+  labels:
+    app: edge-balancer
+spec:
+  type: ClusterIP
+  selector:
+    app: edge-balancer
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

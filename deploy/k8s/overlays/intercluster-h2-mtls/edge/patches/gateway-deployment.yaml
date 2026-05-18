@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+spec:
+  template:
+    spec:
+      containers:
+        - name: nginx
+          volumeMounts:
+            - name: conf
+              mountPath: /etc/nginx/conf.d/ml_tls.inc
+              subPath: ml_tls.inc
+            - name: tls-ml-ca
+              mountPath: /etc/nginx/tls/ml-server-ca
+              readOnly: true
+            - name: tls-gateway-client
+              mountPath: /etc/nginx/tls/gateway-client
+              readOnly: true
+      volumes:
+        - name: tls-ml-ca
+          secret:
+            secretName: ml-server-ca
+        - name: tls-gateway-client
+          secret:
+            secretName: gateway-client-tls

@@ -1,0 +1,120 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ml-balancer-ingress-private
+  labels:
+    networking.edu-ml.io/policy-set: ml-tier
+spec:
+  podSelector:
+    matchLabels:
+      app: ml-balancer
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+      ports:
+        - port: 80
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+    - from:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+        - ipBlock:
+            cidr: 172.16.0.0/12
+        - ipBlock:
+            cidr: 192.168.0.0/16
+        - ipBlock:
+            cidr: 100.64.0.0/10
+      ports:
+        - port: 80
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: code-analyze-ingress-from-ml-balancer
+  labels:
+    networking.edu-ml.io/policy-set: ml-tier
+spec:
+  podSelector:
+    matchLabels:
+      app: code-analyze
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ml-balancer
+      ports:
+        - port: 8000
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: task-generate-ingress-from-ml-balancer
+  labels:
+    networking.edu-ml.io/policy-set: ml-tier
+spec:
+  podSelector:
+    matchLabels:
+      app: task-generate
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ml-balancer
+      ports:
+        - port: 8000
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-analyze-ingress-from-code-analyze
+  labels:
+    networking.edu-ml.io/policy-set: ml-tier
+spec:
+  podSelector:
+    matchLabels:
+      app: redis-analyze
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: code-analyze
+      ports:
+        - port: 6379
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-generate-ingress-from-task-generate
+  labels:
+    networking.edu-ml.io/policy-set: ml-tier
+spec:
+  podSelector:
+    matchLabels:
+      app: redis-generate
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: task-generate
+      ports:
+        - port: 6379
+          protocol: TCP

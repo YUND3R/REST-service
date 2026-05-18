@@ -1,0 +1,6 @@
+Применять только подкаталоги ml и edge:
+
+kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/gpu-pool-rtx5000-a100/ml | kubectl apply -f -
+kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/gpu-pool-rtx5000-a100/edge | kubectl apply -f -
+
+Подробнее: NODE_LABELS.txt.

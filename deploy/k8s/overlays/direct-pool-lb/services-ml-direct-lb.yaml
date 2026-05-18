@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: code-analyze-lb
+spec:
+  type: LoadBalancer
+  selector:
+    app: code-analyze
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-generate-lb
+spec:
+  type: LoadBalancer
+  selector:
+    app: task-generate
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
