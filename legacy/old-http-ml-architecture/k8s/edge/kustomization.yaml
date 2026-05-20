@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: edu-ml
+resources:
+  - ../../../../deploy/k8s/manifests/namespace.yaml
+  - ../../../../deploy/k8s/manifests/auth-service.yaml
+  - ../../../../deploy/k8s/manifests/gateway-deployment.yaml
+  - ../../../../deploy/k8s/manifests/gateway-service.yaml
+  - ../../../../deploy/k8s/clusters/edge/edge-balancer-deployment.yaml
+  - ../../../../deploy/k8s/clusters/edge/edge-balancer-service.yaml
+  - ../../../../deploy/k8s/clusters/edge/ingress.yaml
+  - ml-balancer-externalname.yaml
+configMapGenerator:
+  - name: gateway-nginx-conf
+    files:
+      - default.conf=../../../../deploy/k8s/manifests/files/default.conf
+  - name: edge-balancer-nginx-conf
+    files:
+      - default.conf=../../../../deploy/k8s/clusters/edge/files/edge-balancer.conf
+generatorOptions:
+  disableNameSuffixHash: true
+images:
+  - name: edu-ml-auth-service
+    newName: edu-ml-auth-service
+    newTag: latest

@@ -1,0 +1,172 @@
+services:
+  redis-analyze:
+    image: redis:7-alpine
+    volumes:
+      - redis_analyze_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  redis-generate:
+    image: redis:7-alpine
+    volumes:
+      - redis_generate_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ../..
+      dockerfile: services/auth-service/Dockerfile
+    image: edu-ml-auth-service:latest
+    env_file:
+      - path: ../../.env
+        required: false
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  code-analyze:
+    build:
+      context: ../..
+      dockerfile: services/code-analyze/Dockerfile
+    image: edu-ml-code-analyze:latest
+    env_file:
+      - path: ../../.env
+        required: false
+    environment:
+      LOCAL_MODEL_PATH: /opt/models
+      TRANSFORMERS_OFFLINE: "1"
+      HF_HUB_OFFLINE: "1"
+      REDIS_URL: ${REDIS_URL_ANALYZE:-redis://redis-analyze:6379/0}
+    volumes:
+      - ../../models/code-analyze:/opt/models:ro
+    gpus: all
+    depends_on:
+      redis-analyze:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 600s
+    restart: unless-stopped
+
+  task-generate:
+    build:
+      context: ../..
+      dockerfile: services/task-generate/Dockerfile
+    image: edu-ml-task-generate:latest
+    env_file:
+      - path: ../../.env
+        required: false
+    environment:
+      LOCAL_MODEL_PATH: /opt/models
+      TRANSFORMERS_OFFLINE: "1"
+      HF_HUB_OFFLINE: "1"
+      REDIS_URL: ${REDIS_URL_GENERATE:-redis://redis-generate:6379/0}
+    volumes:
+      - ../../models/task-generate:/opt/models:ro
+    gpus: all
+    depends_on:
+      redis-generate:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 600s
+    restart: unless-stopped
+
+  code-analyze-worker:
+    profiles: ["sqs"]
+    image: edu-ml-code-analyze:latest
+    build:
+      context: ../..
+      dockerfile: services/code-analyze/Dockerfile
+    env_file:
+      - path: ../../.env
+        required: false
+    environment:
+      LOCAL_MODEL_PATH: /opt/models
+      TRANSFORMERS_OFFLINE: "1"
+      HF_HUB_OFFLINE: "1"
+      REDIS_URL: ${REDIS_URL_ANALYZE:-redis://redis-analyze:6379/0}
+      SQS_ANALYZE_QUEUE_URL: ${SQS_ANALYZE_QUEUE_URL:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    volumes:
+      - ../../models/code-analyze:/opt/models:ro
+    command: ["python", "-m", "analyze_svc.sqs_worker"]
+    gpus: all
+    depends_on:
+      redis-analyze:
+        condition: service_healthy
+    restart: unless-stopped
+
+  task-generate-worker:
+    profiles: ["sqs"]
+    image: edu-ml-task-generate:latest
+    build:
+      context: ../..
+      dockerfile: services/task-generate/Dockerfile
+    env_file:
+      - path: ../../.env
+        required: false
+    environment:
+      LOCAL_MODEL_PATH: /opt/models
+      TRANSFORMERS_OFFLINE: "1"
+      HF_HUB_OFFLINE: "1"
+      REDIS_URL: ${REDIS_URL_GENERATE:-redis://redis-generate:6379/0}
+      SQS_GENERATE_QUEUE_URL: ${SQS_GENERATE_QUEUE_URL:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    volumes:
+      - ../../models/task-generate:/opt/models:ro
+    command: ["python", "-m", "task_svc.sqs_worker"]
+    gpus: all
+    depends_on:
+      redis-generate:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_analyze_data:
+  redis_generate_data:
