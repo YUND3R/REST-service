@@ -26,6 +26,8 @@ models/task-generate/**
 *.h5
 *.msgpack
 *.npy
+BROKEN CODE generator.json
+CODE ANALYZE.json
 
 wandb/
 runs/

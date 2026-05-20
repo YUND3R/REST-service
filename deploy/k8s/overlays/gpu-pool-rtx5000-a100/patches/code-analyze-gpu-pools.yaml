@@ -26,7 +26,7 @@ spec:
                   - key: edu-ml.io/gpu-class
                     operator: In
                     values:
-                      - rtx5000
+                      - a100
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists
