@@ -30,8 +30,17 @@ class QueueService:
     def __init__(self, r: redis.Redis):
         self._r = r
 
-    async def set_status(self, task_id: str, status: str, *, error: str | None = None) -> None:
+    async def set_status(
+        self,
+        task_id: str,
+        status: str,
+        *,
+        error: str | None = None,
+        platform_id: str | None = None,
+    ) -> None:
         doc = {"status": status, "updated_at": time.time()}
+        if platform_id is not None:
+            doc["platform_id"] = platform_id
         if error:
             doc["error"] = error
         await self._r.set(status_key(task_id), json.dumps(doc, ensure_ascii=False), ex=get_settings().cache_ttl_seconds)
@@ -78,7 +87,7 @@ class QueueService:
     async def enqueue_analyze(self, payload: dict[str, Any], *, task_id: str | None = None) -> str:
         s = get_settings()
         tid = task_id or str(uuid.uuid4())
-        await self.set_status(tid, STATUS_PENDING)
+        await self.set_status(tid, STATUS_PENDING, platform_id=str(payload["platform_id"]))
         body = {"task_id": tid, **payload}
         await self._r.xadd(s.stream_analyze, {"data": json.dumps(body, ensure_ascii=False)})
         await self.ensure_stream(s.stream_analyze)
@@ -88,7 +97,7 @@ class QueueService:
     async def enqueue_generate(self, payload: dict[str, Any], *, task_id: str | None = None) -> str:
         s = get_settings()
         tid = task_id or str(uuid.uuid4())
-        await self.set_status(tid, STATUS_PENDING)
+        await self.set_status(tid, STATUS_PENDING, platform_id=str(payload["platform_id"]))
         body = {"task_id": tid, **payload}
         await self._r.xadd(s.stream_generate, {"data": json.dumps(body, ensure_ascii=False)})
         await self.ensure_stream(s.stream_generate)
@@ -97,12 +106,14 @@ class QueueService:
     async def enqueue_pipeline(self, payload: dict[str, Any], *, task_id: str | None = None) -> str:
         s = get_settings()
         tid = task_id or str(uuid.uuid4())
-        await self.set_status(tid, STATUS_PENDING)
+        await self.set_status(tid, STATUS_PENDING, platform_id=str(payload["platform_id"]))
         body = {"task_id": tid, **payload}
         await self._r.xadd(s.stream_pipeline, {"data": json.dumps(body, ensure_ascii=False)})
         await self.ensure_stream(s.stream_pipeline)
         return tid
 
     async def complete_with_result(self, task_id: str, result: dict[str, Any]) -> None:
-        await self.set_status(task_id, STATUS_DONE)
+        snap = await self.get_snapshot(task_id)
+        platform_id = str(snap["platform_id"]) if snap and snap.get("platform_id") else None
+        await self.set_status(task_id, STATUS_DONE, platform_id=platform_id)
         await self.set_result(task_id, result)

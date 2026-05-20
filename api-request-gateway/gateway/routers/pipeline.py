@@ -47,7 +47,7 @@ async def pipeline(
     cached = await cache.get_json(ckey)
     if cached is not None:
         task_id = str(uuid.uuid4())
-        await queue.set_status(task_id, "pending")
+        await queue.set_status(task_id, "pending", platform_id=str(platform.id))
         await queue.complete_with_result(task_id, cached)
         asyncio.create_task(deliver_webhook(str(body.webhook_url), cached))
         return TaskAccepted(task_id=task_id)

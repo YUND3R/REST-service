@@ -21,6 +21,14 @@ def _allowed_hosts() -> set[str]:
     return {host.strip().lower() for host in raw.split(",") if host.strip()}
 
 
+def _safe_url_label(url: str) -> str:
+    parsed = urlparse(url)
+    host = (parsed.hostname or "<invalid>").lower()
+    port = f":{parsed.port}" if parsed.port else ""
+    scheme = parsed.scheme or "<unknown>"
+    return f"{scheme}://{host}{port}"
+
+
 def _is_forbidden_ip(value: str) -> bool:
     ip = ipaddress.ip_address(value)
     return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified
@@ -74,6 +82,6 @@ async def deliver_webhook(url: str, body: dict, *, timeout: float = 30.0) -> Non
             response = await client.post(url, json=body)
             response.raise_for_status()
     except UnsafeWebhookUrl:
-        logger.warning("Unsafe webhook URL blocked: %s", url)
+        logger.warning("Unsafe webhook URL blocked: %s", _safe_url_label(url))
     except Exception:
-        logger.exception("Webhook delivery failed: %s", url)
+        logger.exception("Webhook delivery failed: %s", _safe_url_label(url))
