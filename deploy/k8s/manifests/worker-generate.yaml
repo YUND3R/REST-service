@@ -30,12 +30,18 @@ spec:
             - name: LOG_LEVEL
               value: INFO
             - name: REDIS_URL
-              value: "rediss://redis:6379/0?ssl_cert_reqs=required&ssl_ca_certs=/etc/edu-ml/redis-tls/ca.crt"
+              value: "rediss://redis:6379/0?ssl_cert_reqs=required&ssl_ca_certs=/etc/edu-ml/redis-tls/ca.crt&ssl_certfile=/etc/edu-ml/redis-client-tls/tls.crt&ssl_keyfile=/etc/edu-ml/redis-client-tls/tls.key"
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: gateway-secrets
                   key: database-url
+            - name: POSTGRES_SSL_CA_FILE
+              value: /etc/edu-ml/postgres-client-tls/ca.crt
+            - name: POSTGRES_SSL_CERT_FILE
+              value: /etc/edu-ml/postgres-client-tls/tls.crt
+            - name: POSTGRES_SSL_KEY_FILE
+              value: /etc/edu-ml/postgres-client-tls/tls.key
             - name: BROKEN_CODE_MODEL_ID
               value: Vilyam888/Broken_Code_Generation.1.0
             - name: LOAD_IN_4BIT
@@ -54,6 +60,12 @@ spec:
             - name: redis-tls
               mountPath: /etc/edu-ml/redis-tls
               readOnly: true
+            - name: redis-client-tls
+              mountPath: /etc/edu-ml/redis-client-tls
+              readOnly: true
+            - name: postgres-client-tls
+              mountPath: /etc/edu-ml/postgres-client-tls
+              readOnly: true
           resources:
             requests:
               cpu: "2"
@@ -65,3 +77,9 @@ spec:
         - name: redis-tls
           secret:
             secretName: redis-tls
+        - name: redis-client-tls
+          secret:
+            secretName: redis-client-tls
+        - name: postgres-client-tls
+          secret:
+            secretName: postgres-client-tls

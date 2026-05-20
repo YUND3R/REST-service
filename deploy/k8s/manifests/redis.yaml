@@ -51,7 +51,7 @@ spec:
             - --tls-ca-cert-file
             - /tls/ca.crt
             - --tls-auth-clients
-            - "no"
+            - "yes"
             - --appendonly
             - "yes"
             - --maxmemory-policy

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import ssl
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -12,12 +14,27 @@ _engine = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _postgres_ssl_connect_args() -> dict[str, ssl.SSLContext]:
+    ca_file = os.getenv("POSTGRES_SSL_CA_FILE")
+    cert_file = os.getenv("POSTGRES_SSL_CERT_FILE")
+    key_file = os.getenv("POSTGRES_SSL_KEY_FILE")
+    if not ca_file and not cert_file and not key_file:
+        return {}
+
+    ctx = ssl.create_default_context(cafile=ca_file)
+    ctx.check_hostname = os.getenv("POSTGRES_SSL_CHECK_HOSTNAME", "true").lower() in {"1", "true", "yes", "on"}
+    if cert_file and key_file:
+        ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
+    return {"ssl": ctx}
+
+
 def get_engine():
     global _engine, _session_factory
     if _engine is None:
         settings = get_settings()
         _engine = create_async_engine(
             settings.database_url,
+            connect_args=_postgres_ssl_connect_args(),
             pool_pre_ping=True,
             pool_size=10,
             max_overflow=20,

@@ -48,9 +48,12 @@ spec:
             - |
               cp /tls-src/tls.crt /tls/server.crt
               cp /tls-src/tls.key /tls/server.key
+              cp /tls-src/ca.crt /tls/root.crt
               chown 999:999 /tls/server.crt /tls/server.key
+              chown 999:999 /tls/root.crt
               chmod 600 /tls/server.key
               chmod 644 /tls/server.crt
+              chmod 644 /tls/root.crt
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -89,6 +92,10 @@ spec:
             - ssl_cert_file=/tls/server.crt
             - -c
             - ssl_key_file=/tls/server.key
+            - -c
+            - ssl_ca_file=/tls/root.crt
+            - -c
+            - hba_file=/etc/postgresql/pg_hba.conf
           ports:
             - name: postgres
               containerPort: 5432
@@ -100,6 +107,10 @@ spec:
               readOnly: true
             - name: postgres-tls
               mountPath: /tls
+              readOnly: true
+            - name: postgres-hba
+              mountPath: /etc/postgresql/pg_hba.conf
+              subPath: pg_hba.conf
               readOnly: true
           readinessProbe:
             exec:
@@ -130,3 +141,6 @@ spec:
             secretName: postgres-tls
         - name: postgres-tls
           emptyDir: {}
+        - name: postgres-hba
+          configMap:
+            name: postgres-hba
