@@ -1,10 +1,10 @@
 Топология prod: два Kubernetes-кластера (см. deploy/k8s/clusters/README.txt).
 Разметка метками выполняется в соответствующем кластере и контексте kubectl.
 
-Кластер A — edge (CPU: gateway / auth внутри этого кластера):
+Кластер A — edge (CPU: gateway внутри этого кластера):
   kubectl label node <имя-cpu-ноды> edu-ml.io/tier=edge --overwrite
 
-Кластер B — ML (GPU: code-analyze, task-generate, ml-balancer, Redis tier):
+Кластер B — ML (GPU: worker-analyze, worker-generate, worker-pipeline; также Redis/PostgreSQL):
   kubectl label node <имя-gpu-ноды> edu-ml.io/tier=gpu --overwrite
   kubectl taint nodes <gpu-node> nvidia.com/gpu:NoSchedule --overwrite
 

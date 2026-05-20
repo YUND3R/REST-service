@@ -14,11 +14,10 @@
 Taint на всех GPU-нодах (как обычно):
   kubectl taint nodes <gpu-node> nvidia.com/gpu:NoSchedule --overwrite
 
-Поды code-analyze и task-generate могут работать только на нодах с gpu-class a100 или rtx5000;
+Поды worker-analyze, worker-generate и worker-pipeline могут работать только на нодах с gpu-class a100 или rtx5000;
 предпочтение при планировании — a100.
 
-Внутренний nginx ml-balancer (между gateway и ML) — только tier=gpu + тот же taint; gpu-class не требуется (может встать на любую GPU-ноду).
-PVC моделей: при переносе пода на другую ноду учитывайте зону/ReadWriteOnce (при необходимости дублируйте том или используйте RWX).
+ML HTTP-сервисы и ml-balancer не используются в минимальной worker-архитектуре.
 
 Применение (сначала кластер B, затем A):
   kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/gpu-pool-rtx5000-a100/ml | kubectl apply -f -

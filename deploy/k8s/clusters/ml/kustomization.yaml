@@ -3,25 +3,20 @@ kind: Kustomization
 namespace: edu-ml
 resources:
   - ../../manifests/namespace.yaml
-  - ../../manifests/redis-analyze.yaml
-  - ../../manifests/redis-generate.yaml
-  - ../../manifests/code-analyze.yaml
-  - ../../manifests/task-generate.yaml
-  - ../../manifests/ml-balancer-deployment.yaml
-  - ../../manifests/ml-balancer-service.yaml
-  - ../../manifests/network-policy-ml-tier.yaml
+  - ../../manifests/redis.yaml
+  - ../../manifests/postgres.yaml
+  - ../../manifests/worker-analyze.yaml
+  - ../../manifests/worker-generate.yaml
+  - ../../manifests/worker-pipeline.yaml
 patches:
   - path: namespace-labels.yaml
 configMapGenerator:
-  - name: ml-balancer-nginx-conf
+  - name: postgres-schema
     files:
-      - default.conf=../../manifests/files/ml-balancer.conf
+      - 001_schema.sql=../../../../api-request-gateway/db/migrations/001_schema.sql
 generatorOptions:
   disableNameSuffixHash: true
 images:
-  - name: edu-ml-code-analyze
-    newName: edu-ml-code-analyze
-    newTag: latest
-  - name: edu-ml-task-generate
-    newName: edu-ml-task-generate
+  - name: api-request-gateway
+    newName: ghcr.io/yund3r/rest-service
     newTag: latest

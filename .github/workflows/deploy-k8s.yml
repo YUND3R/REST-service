@@ -58,9 +58,11 @@ jobs:
       - name: Wait for rollouts (best effort)
         continue-on-error: true
         run: |
-          kubectl -n edu-ml rollout status deployment/ml-balancer --timeout=120s || true
-          kubectl -n edu-ml rollout status deployment/code-analyze --timeout=300s || true
-          kubectl -n edu-ml rollout status deployment/task-generate --timeout=300s || true
+          kubectl -n edu-ml rollout status deployment/redis --timeout=120s || true
+          kubectl -n edu-ml rollout status deployment/postgres --timeout=120s || true
+          kubectl -n edu-ml rollout status deployment/worker-analyze --timeout=300s || true
+          kubectl -n edu-ml rollout status deployment/worker-generate --timeout=300s || true
+          kubectl -n edu-ml rollout status deployment/worker-pipeline --timeout=300s || true
 
   deploy-edge:
     name: Cluster edge (ingress + gateway tier)

@@ -11,15 +11,16 @@
 -------------------------------------------------
   deploy/k8s/clusters/edge
 
-  Ingress -> Service edge-balancer -> nginx edge -> gateway nginx -> ExternalName-сервис ml-balancer ->
-  резолв внутреннего имени до кластера B (см. ml-balancer-externalname.yaml).
+  Ingress -> Service edge-balancer -> nginx edge -> API Gateway (FastAPI).
 
-  После установки DNS внутренней зоны отредактируйте
-  deploy/k8s/clusters/edge/ml-balancer-externalname.yaml: замените externalName вида
-  ml-balancer.cluster-b.example.invalid на FQDN / CNAME вашего LB сервиса кластера B.
+  Gateway не вызывает ML по HTTP. Он пишет задачи в Redis Streams и читает статусы/результаты.
+  Для связи с кластером B отредактируйте ExternalName-сервисы:
+    deploy/k8s/clusters/edge/redis-externalname.yaml
+    deploy/k8s/clusters/edge/postgres-externalname.yaml
+  Замените redis.ml.example.internal / postgres.ml.example.internal на приватные DNS-имена сервисов кластера B.
 
 
-Кластер B — модели + ml-balancer + Redis (контур только с доверенного периметра)
+Кластер B — Redis + PostgreSQL + GPU workers (контур только с доверенного периметра)
 -------------------------------------------------
   deploy/k8s/clusters/ml
 
@@ -27,22 +28,29 @@
     networking.edu-ml.io/contour=private,
     networking.edu-ml.io/cluster-b-ml-tier=true
 
-NetworkPolicy в manifests/network-policy-ml-tier.yaml описывает доверенный контур между нод-кластерами и
-единым kubelet-слоем только для упрощения; между двумя кластерами к ml-balancer идёт трафик с
-адресов вашей приватной сети/CGNAT (RFC1918, 100.64.0.0/10) — см. ml-balancer-ingress-private.ipBlock.
+  В ML-кластере запускаются:
+    - redis: Redis Streams, кэш, статусы задач, student_profile
+    - postgres: platforms/students/analyses/generated_tasks
+    - worker-analyze: модель анализа кода
+    - worker-generate: модель генерации задач
+    - worker-pipeline: полный цикл "анализ -> профиль -> генерация"
 
-  Первое ingress-правило (podSelector app=gateway) в спецификации остаётся для совместимости с локальными
-  тестовыми средами; при разнесении по двум кластерам к ml-балансеру действует второе правило (ipBlock).
+  Старые HTTP ML-сервисы (code-analyze/task-generate), auth-service и ml-balancer не входят в канонический
+  минимальный контур. Они могут оставаться в репозитории как legacy/experimental, но не подключаются
+  kustomization-файлами clusters/ml и clusters/edge.
 
 
 Порядок раскладки и команды Kustomize
 --------------------------------------
 
+  0) Создайте секреты PostgreSQL/DATABASE_URL в обоих кластерах.
+     Пример команд: deploy/k8s/clusters/SECRETS.example.txt
+
   1) Кластер B (ML):
 
      kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/clusters/ml | kubectl apply -f -
 
-  2) Пропишите доступное из кластера A DNS-имя на ml-balancer (LB / внутренняя зона).
+  2) Пропишите доступные из кластера A DNS-имена Redis и PostgreSQL (private DNS / internal LB).
 
   3) Кластер A (edge):
 
@@ -51,20 +59,14 @@ NetworkPolicy в manifests/network-policy-ml-tier.yaml описывает дов
 Kustomize по умолчанию не тянет ../.. без --load-restrictor=LoadRestrictionsNone (или аналога в конфиг).
 
 
-GPU / топология и опционально mTLS между кластерами
+GPU / топология и межкластерная связность
 ---------------------------------------------------
   deploy/k8s/overlays/cpu-gpu-topology — подпапки ml/ и edge/ (применять в каждом кластере свой kustomize).
   deploy/k8s/overlays/gpu-pool-rtx5000-a100 — то же, разнесение классов GPU.
 
-HTTP/2 (TLS) и mTLS между edge и ML (опционально, даже во внутреннем контуре):
-  см. deploy/k8s/overlays/intercluster-h2-mtls/README.txt и подборки kubectl из этого файла.
-
-Отдельные LoadBalancer вместо внутрикластерной схемы (редко, для отладки):
-  deploy/k8s/overlays/direct-pool-lb/ml и deploy/k8s/overlays/direct-pool-lb/edge.
-
-Требуется CNI с поддержкой NetworkPolicy (Calico, Cilium, AWS VPC CNI + NP и т.д.). Иначе правила не
-действуют — дублируйте ограничения security groups / firewall. Если источники трафика к ml-balancer
-находятся в нестандартном CIDR, добавьте ipBlock в политику ml-balancer-ingress-private.
+Требуется приватная сетевое соединение между edge и ML-кластерами (VPC peering/VPN/private DNS/internal LB).
+Если используется CNI с NetworkPolicy (Calico, Cilium, AWS VPC CNI + NP и т.д.), ограничения нужно
+дублировать правилами на Redis/PostgreSQL. Иначе применяйте security groups / firewall.
 
 Meta: CI
 --------

@@ -3,6 +3,6 @@ kind: Kustomization
 resources:
   - ../../../clusters/ml
 patches:
-  - path: ../patches/ml-balancer-gpu.yaml
   - path: ../patches/code-analyze-gpu-pools.yaml
   - path: ../patches/task-generate-gpu-pools.yaml
+  - path: ../patches/worker-pipeline-gpu-pools.yaml

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-analyze
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-analyze
+  template:
+    metadata:
+      labels:
+        app: worker-analyze
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: api-request-gateway:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -m
+            - workers.analyze_worker
+          env:
+            - name: ENVIRONMENT
+              value: production
+            - name: LOG_LEVEL
+              value: INFO
+            - name: REDIS_URL
+              value: redis://redis:6379/0
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-secrets
+                  key: database-url
+            - name: CODE_ANALYZE_MODEL_ID
+              value: Vilyam888/Code_analyze.1.0
+            - name: LOAD_IN_4BIT
+              value: "true"
+            - name: STREAM_GROUP_ANALYZE
+              value: analyze_workers
+            - name: MAX_NEW_TOKENS
+              value: "1024"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 10001
+          resources:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+            limits:
+              nvidia.com/gpu: "1"

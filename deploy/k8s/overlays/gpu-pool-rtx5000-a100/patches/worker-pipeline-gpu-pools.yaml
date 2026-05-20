@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: worker-generate
+  name: worker-pipeline
 spec:
   template:
     spec:

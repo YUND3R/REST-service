@@ -3,23 +3,20 @@ kind: Kustomization
 namespace: edu-ml
 resources:
   - ../../manifests/namespace.yaml
-  - ../../manifests/auth-service.yaml
   - ../../manifests/gateway-deployment.yaml
   - ../../manifests/gateway-service.yaml
   - edge-balancer-deployment.yaml
   - edge-balancer-service.yaml
   - ingress.yaml
-  - ml-balancer-externalname.yaml
+  - redis-externalname.yaml
+  - postgres-externalname.yaml
 configMapGenerator:
-  - name: gateway-nginx-conf
-    files:
-      - default.conf=../../manifests/files/default.conf
   - name: edge-balancer-nginx-conf
     files:
       - default.conf=files/edge-balancer.conf
 generatorOptions:
   disableNameSuffixHash: true
 images:
-  - name: edu-ml-auth-service
-    newName: edu-ml-auth-service
+  - name: api-request-gateway
+    newName: ghcr.io/yund3r/rest-service
     newTag: latest

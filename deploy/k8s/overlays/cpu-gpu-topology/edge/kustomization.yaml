@@ -4,4 +4,3 @@ resources:
   - ../../../clusters/edge
 patches:
   - path: ../patches/gateway-edge.yaml
-  - path: ../patches/auth-edge.yaml

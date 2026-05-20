@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-pipeline
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-pipeline
+  template:
+    metadata:
+      labels:
+        app: worker-pipeline
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: api-request-gateway:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -m
+            - workers.pipeline_worker
+          env:
+            - name: ENVIRONMENT
+              value: production
+            - name: LOG_LEVEL
+              value: INFO
+            - name: REDIS_URL
+              value: redis://redis:6379/0
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-secrets
+                  key: database-url
+            - name: CODE_ANALYZE_MODEL_ID
+              value: Vilyam888/Code_analyze.1.0
+            - name: BROKEN_CODE_MODEL_ID
+              value: Vilyam888/Broken_Code_Generation.1.0
+            - name: LOAD_IN_4BIT
+              value: "true"
+            - name: STREAM_GROUP_PIPELINE
+              value: pipeline_workers
+            - name: MAX_NEW_TOKENS
+              value: "1536"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 10001
+          resources:
+            requests:
+              cpu: "2"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+            limits:
+              nvidia.com/gpu: "1"
