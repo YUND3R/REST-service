@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN useradd --create-home --uid 10001 appuser
 
-COPY --chown=appuser:appuser libs/edu_ml_common /opt/libs/edu_ml_common
+COPY --chown=appuser:appuser legacy/old-http-ml-architecture/libs/edu_ml_common /opt/libs/edu_ml_common
 ENV PYTHONPATH=/opt/libs/edu_ml_common
 
 COPY legacy/old-http-ml-architecture/services/code-analyze/requirements.txt /tmp/requirements.txt

@@ -38,4 +38,5 @@
 - `k8s/manifests/` — старые manifest-фрагменты для HTTP ML, `ml-balancer`, `auth-service`, двух Redis.
 - `k8s/overlays/` — старые overlay для mTLS/direct LB и legacy GPU/auth patches.
 - `terraform/` — старые SQS/S3 заготовки.
+- `libs/edu_ml_common/` — полная старая общая библиотека для legacy-сервисов.
 - `docker-compose.yml` — старый локальный запуск отдельного ML-контура.
