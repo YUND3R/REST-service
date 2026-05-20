@@ -14,14 +14,15 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     log_level: str = "INFO"
-    redis_url: str = "redis://127.0.0.1:6379/0"
-    database_url: str = "postgresql+asyncpg://ai_mentor:ai_mentor@127.0.0.1:5432/ai_mentor"
+    redis_url: str = "redis://redis:6379/0"
+    database_url: str = "postgresql+asyncpg://ai_mentor:CHANGE_ME@postgres:5432/ai_mentor"
 
     rate_limit_per_hour: int = 1000
     cache_ttl_seconds: int = 24 * 3600
-    docs_enabled: bool = True
+    docs_enabled: bool = False
 
-    cors_origins: str = "*"
+    cors_origins: str = "https://app.example.com"
+    webhook_allowed_hosts: str = ""
 
     stream_analyze: str = "queue:analyze"
     stream_generate: str = "queue:generate"

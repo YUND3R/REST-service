@@ -26,10 +26,11 @@ services:
       ENVIRONMENT: docker
       APP_VERSION: "1.0.0"
       REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: postgresql+asyncpg://ai_mentor:ai_mentor@postgres:5432/ai_mentor
+      DATABASE_URL: postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/ai_mentor
       RATE_LIMIT_PER_HOUR: "10000"
-      DOCS_ENABLED: "true"
-      CORS_ORIGINS: "*"
+      DOCS_ENABLED: "false"
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://app.example.com}
+      WEBHOOK_ALLOWED_HOSTS: ${WEBHOOK_ALLOWED_HOSTS:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,10 +57,11 @@ services:
       ENVIRONMENT: docker
       APP_VERSION: "1.0.0"
       REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: postgresql+asyncpg://ai_mentor:ai_mentor@postgres:5432/ai_mentor
+      DATABASE_URL: postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/ai_mentor
       RATE_LIMIT_PER_HOUR: "10000"
-      DOCS_ENABLED: "true"
-      CORS_ORIGINS: "*"
+      DOCS_ENABLED: "false"
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://app.example.com}
+      WEBHOOK_ALLOWED_HOSTS: ${WEBHOOK_ALLOWED_HOSTS:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,8 +80,6 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "allkeys-lru"]
-    ports:
-      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -95,10 +95,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ai_mentor
-      POSTGRES_PASSWORD: ai_mentor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ai_mentor
-    ports:
-      - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./db/migrations/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
@@ -120,7 +118,7 @@ services:
       LOG_LEVEL: INFO
       ENVIRONMENT: docker
       REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: postgresql+asyncpg://ai_mentor:ai_mentor@postgres:5432/ai_mentor
+      DATABASE_URL: postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/ai_mentor
       CODE_ANALYZE_MODEL_ID: Vilyam888/Code_analyze.1.0
       LOAD_IN_4BIT: "true"
       STREAM_GROUP_ANALYZE: analyze_workers
@@ -145,7 +143,7 @@ services:
       LOG_LEVEL: INFO
       ENVIRONMENT: docker
       REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: postgresql+asyncpg://ai_mentor:ai_mentor@postgres:5432/ai_mentor
+      DATABASE_URL: postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/ai_mentor
       BROKEN_CODE_MODEL_ID: Vilyam888/Broken_Code_Generation.1.0
       LOAD_IN_4BIT: "true"
       STREAM_GROUP_GENERATE: generate_workers
@@ -170,7 +168,7 @@ services:
       LOG_LEVEL: INFO
       ENVIRONMENT: docker
       REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: postgresql+asyncpg://ai_mentor:ai_mentor@postgres:5432/ai_mentor
+      DATABASE_URL: postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/ai_mentor
       CODE_ANALYZE_MODEL_ID: Vilyam888/Code_analyze.1.0
       BROKEN_CODE_MODEL_ID: Vilyam888/Broken_Code_Generation.1.0
       LOAD_IN_4BIT: "true"

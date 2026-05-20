@@ -5,16 +5,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-COPY libs/edu_ml_common /opt/libs/edu_ml_common
+RUN useradd --create-home --uid 10001 appuser
+
+COPY --chown=appuser:appuser libs/edu_ml_common /opt/libs/edu_ml_common
 ENV PYTHONPATH=/opt/libs/edu_ml_common
 
 COPY services/code-analyze/requirements.txt /tmp/requirements.txt
 RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt
 
-COPY services/code-analyze/analyze_svc /opt/svc/analyze_svc
-COPY services/code-analyze/app /opt/svc/app
+COPY --chown=appuser:appuser services/code-analyze/analyze_svc /opt/svc/analyze_svc
+COPY --chown=appuser:appuser services/code-analyze/app /opt/svc/app
 
 WORKDIR /opt/svc
+USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \

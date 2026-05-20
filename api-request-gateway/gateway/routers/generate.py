@@ -5,7 +5,6 @@ import logging
 import uuid
 from typing import Any
 
-import httpx
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, Request
 
@@ -17,6 +16,7 @@ from gateway.services.auth import check_rate_limit, verify_api_key
 from gateway.services.cache import CacheService, generate_cache_key
 from gateway.services.queue import QueueService
 from gateway.services.students import get_or_create_student
+from gateway.services.webhook import deliver_webhook
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +33,6 @@ def get_queue(request: Request) -> QueueService:
 
 def get_cache(request: Request) -> CacheService:
     return request.app.state.cache
-
-
-async def _deliver_webhook(url: str, body: dict[str, Any]) -> None:
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.post(url, json=body)
-            r.raise_for_status()
-    except Exception:
-        logger.exception("Webhook delivery failed: %s", url)
 
 
 async def _persist_generated(
@@ -82,7 +73,7 @@ async def generate(
         await queue.set_status(task_id, "pending")
         webhook_body: dict[str, Any] = {"student_id": body.student_id, "generated_task": cached}
         await queue.complete_with_result(task_id, webhook_body)
-        asyncio.create_task(_deliver_webhook(str(body.webhook_url), webhook_body))
+        asyncio.create_task(deliver_webhook(str(body.webhook_url), webhook_body))
         asyncio.create_task(
             _persist_generated(student_uuid, list(body.tags), body.difficulty, cached, None)
         )

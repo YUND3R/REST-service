@@ -21,10 +21,11 @@ We aim to acknowledge within a few business days.
 
 ## Operational hardening (production checklist)
 
-- Replace demo API keys (`001_schema.sql` seed) and **rotate** `platforms.api_key` regularly.  
+- Replace demo API keys (`001_schema.sql` seed), store only SHA-256 hashes in `platforms.api_key`, and rotate regularly.  
 - Use strong `POSTGRES_PASSWORD` and restrict DB/Redis to private networks (remove public port mappings in `docker-compose` where not needed).  
 - Set `DOCS_ENABLED=false` and expose `/docs` only on internal networks.  
 - Restrict `CORS_ORIGINS` to known LMS origins (avoid `*` in production).  
+- Restrict outbound webhook delivery with `WEBHOOK_ALLOWED_HOSTS`; do not allow private/internal IP targets.  
 - Terminate TLS at a reverse proxy or load balancer in front of Nginx.  
 - For Hugging Face model pulls in private environments, use `HF_TOKEN` with minimal scope and store in an enterprise secret store.  
 

@@ -1,9 +1,11 @@
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class GenerateServiceSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
-    local_model_path: str = '/opt/models'
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    local_model_path: str = "/opt/models"
     preload_model: bool = True
     max_new_tokens: int = 1200
     temperature: float = 0.7
@@ -15,7 +17,8 @@ class GenerateServiceSettings(BaseSettings):
     redis_url: str | None = None
     redis_ttl_seconds: int | None = None
     user_history_max: int = 0
-    cors_origins: str = '*'
+    cors_origins: str = "https://app.example.com"
+
 
 @lru_cache
 def get_generate_settings() -> GenerateServiceSettings:

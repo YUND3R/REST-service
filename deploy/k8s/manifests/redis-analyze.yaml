@@ -23,9 +23,20 @@ spec:
       labels:
         app: redis-analyze
     spec:
+      securityContext:
+        fsGroup: 999
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: redis
           image: redis:7-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 999
           args:
             - redis-server
             - --appendonly

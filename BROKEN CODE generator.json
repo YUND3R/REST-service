@@ -1,0 +1,43 @@
+[
+  {
+    "id": 1,
+    "title": "Стратифицированный split и масштабирование без data leakage",
+    "difficulty": "hard",
+    "topic_tags": {
+      "Classification": 0.4,
+      "DataPreprocessing": 0.4,
+      "ModelSelection": 0.2
+    },
+    "task_context": "В учебном пайплайне для бинарной классификации нужно подготовить данные перед обучением модели. Текущая реализация допускает утечку данных: она обучает `StandardScaler` на всей выборке до разбиения на train и test, а затем делает разбиение без стратификации. Нужно сначала выполнить `train_test_split` с `test_size=0.2`, `random_state=42`, `stratify=y`, затем обучить `StandardScaler` только на `X_train`, преобразовать `X_train` и `X_test` и вернуть масштабированные выборки вместе с метками и обученным scaler.",
+    "tests": [
+      "import numpy as np",
+      "X = [[1.0, 10.0], [2.0, 20.0], [3.0, 30.0], [4.0, 40.0], [5.0, 50.0], [6.0, 60.0], [7.0, 70.0], [8.0, 80.0], [9.0, 90.0], [10.0, 100.0]]",
+      "y = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]",
+      "X_train_scaled, X_test_scaled, y_train, y_test, scaler = split_and_scale_binary_data(X, y)",
+      "assert y_train == [1, 0, 0, 0, 1, 1, 1, 0]",
+      "assert y_test == [0, 1]",
+      "assert X_train_scaled.shape == (8, 2)",
+      "assert X_test_scaled.shape == (2, 2)",
+      "assert np.allclose(scaler.mean_, [5.125, 51.25])",
+      "assert np.allclose(scaler.scale_, [2.7128168017763383, 27.128168017763382])",
+      "assert np.allclose(X_train_scaled.mean(axis=0), [0.0, 0.0], atol=1e-12)",
+      "assert np.allclose(X_test_scaled, [[-0.4146981098256822, -0.4146981098256823], [1.7970251425779564, 1.7970251425779564]])"
+    ],
+    "expected_output": "Функция должна вернуть кортеж `(X_train_scaled, X_test_scaled, y_train, y_test, scaler)`, где scaler обучен только на тренировочной части, а разбиение выполнено стратифицированно.",
+    "input_example": "Пример входа: `X = [[1.0, 10.0], [2.0, 20.0], [3.0, 30.0], [4.0, 40.0], [5.0, 50.0], [6.0, 60.0], [7.0, 70.0], [8.0, 80.0], [9.0, 90.0], [10.0, 100.0]]`, `y = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]`.",
+    "output_example": "Пример ожидаемого возврата: `y_train = [1, 0, 0, 0, 1, 1, 1, 0]`, `y_test = [0, 1]`, `scaler.mean_ = [5.125, 51.25]`, `scaler.scale_ = [2.7128168017763383, 27.128168017763382]`, `X_test_scaled = [[-0.4146981098256822, -0.4146981098256823], [1.7970251425779564, 1.7970251425779564]]`.",
+    "requirements": [
+      "Сначала выполнить стратифицированное разбиение данных на train и test.",
+      "Обучить `StandardScaler` только на `X_train`.",
+      "Преобразовать и `X_train`, и `X_test` одним и тем же scaler.",
+      "Вернуть результат в порядке `X_train_scaled, X_test_scaled, y_train, y_test, scaler`."
+    ],
+    "constraints": [
+      "Не менять имя функции `split_and_scale_binary_data`.",
+      "Не изменять входные `X` и `y` на месте.",
+      "Не обучать scaler на всей выборке до split.",
+      "Нельзя хардкодить значения из примеров входа и выхода."
+    ],
+    "broken_code": "from sklearn.model_selection import train_test_split\\nfrom sklearn.preprocessing import StandardScaler\\n\\n\\ndef split_and_scale_binary_data(X, y):\\n    scaler = StandardScaler()\\n    X_scaled = scaler.fit_transform(X)  # ВОТ ТУТ НУЖНО ИСПРАВИТЬ КОД: scaler нельзя обучать на всей выборке до split\\n    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)  # ВОТ ТУТ НУЖНО ИСПРАВИТЬ КОД: нужен stratify=y и split должен быть до масштабирования\\n    return X_train, X_test, y_train, y_test, scaler"
+  }
+]

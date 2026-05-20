@@ -35,10 +35,20 @@ spec:
       labels:
         app: code-analyze
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
           image: edu-ml-code-analyze:latest
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 10001
           ports:
             - name: http
               containerPort: 8000
@@ -52,7 +62,14 @@ spec:
             - name: REDIS_URL
               value: redis://redis-analyze:6379/0
             - name: CORS_ORIGINS
-              value: "*"
+              value: https://app.example.com
+            - name: AUTH_ENABLED
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: jwt-secret
           volumeMounts:
             - name: model-data
               mountPath: /opt/models

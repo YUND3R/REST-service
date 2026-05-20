@@ -8,7 +8,6 @@ import socket
 import uuid
 from typing import Any
 
-import httpx
 import redis.asyncio as redis
 from redis.exceptions import ResponseError
 
@@ -17,18 +16,10 @@ from db.session import get_session_factory
 from gateway.config import get_settings
 from gateway.services.cache import CacheService
 from gateway.services.queue import STATUS_FAILED, STATUS_PROCESSING, QueueService
+from gateway.services.webhook import deliver_webhook
 from models.broken_code_gen import BrokenCodeGenModel
 
 logger = logging.getLogger(__name__)
-
-
-async def deliver_webhook(url: str, payload: dict[str, Any]) -> None:
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            r = await client.post(url, json=payload)
-            r.raise_for_status()
-    except Exception:
-        logger.exception("Webhook POST failed: %s", url)
 
 
 async def persist_generated(
@@ -117,7 +108,7 @@ class GenerateWorker:
 
         body = {"student_id": student_external, "generated_task": out}
         await self._queue.complete_with_result(task_id, body)
-        await deliver_webhook(webhook_url, body)
+        await deliver_webhook(webhook_url, body, timeout=60.0)
 
 
 async def amain() -> None:

@@ -19,13 +19,15 @@ docker compose build
 docker compose up -d
 ```
 
-Публичная точка входа (по умолчанию): **http://localhost:8080**
+Публичная точка входа: **https://api.example.com**
 
-- Swagger: http://localhost:8080/docs  
-- Liveness: http://localhost:8080/health/live  
-- Readiness: http://localhost:8080/health/ready  
+- Swagger: https://api.example.com/docs (если `DOCS_ENABLED=true`)  
+- Liveness: https://api.example.com/health/live  
+- Readiness: https://api.example.com/health/ready  
 
-Заголовок для API: **`X-API-Key`**. После первого применения миграции `001_schema.sql` в БД есть демо-ключ **`dev-api-key`** — **замените его в продакшене** (обновите запись в таблице `platforms`).
+Заголовок для API: **`X-API-Key`**. В таблице `platforms.api_key` хранится **SHA-256 хэш** ключа,
+а не сам ключ. Для локального seed-примера в `001_schema.sql` захэширован ключ `dev-api-key`;
+в продакшене создайте новый ключ, сохраните только его хэш и не публикуйте исходное значение.
 
 Пример запроса:
 
@@ -55,7 +57,8 @@ Content-Type: application/json
 | `RATE_LIMIT_PER_HOUR` | Лимит запросов на API-ключ |
 | `CACHE_TTL_SECONDS` | TTL кэша (сек), по умолчанию 86400 |
 | `DOCS_ENABLED` | `true` / `false` — Swagger/ReDoc |
-| `CORS_ORIGINS` | Список origin через запятую или `*` (в проде лучше явный список доменов) |
+| `CORS_ORIGINS` | Список доверенных origin через запятую |
+| `WEBHOOK_ALLOWED_HOSTS` | Необязательный allowlist доменов для webhook-доставки |
 | `CODE_ANALYZE_MODEL_ID` / `BROKEN_CODE_MODEL_ID` | Идентификаторы моделей в Hugging Face Hub |
 | `HF_TOKEN` | Если модели или веса требуют авторизации |
 
@@ -70,10 +73,10 @@ Content-Type: application/json
 
 ## Продакшен-чеклист
 
-1. Уникальные пароли БД и API-ключи платформ; удалить или ротировать `dev-api-key`.  
-2. Не публиковать PostgreSQL/Redis в интернет; при необходимости уберите `ports` или привяжите к `127.0.0.1`.  
+1. Уникальные пароли БД и API-ключи платформ; хранить только SHA-256 хэши API-ключей.  
+2. Не публиковать PostgreSQL/Redis в интернет; держать их только во внутренней сети/кластере.  
 3. `DOCS_ENABLED=false`, TLS на reverse-proxy перед Nginx.  
-4. Ограничить `CORS_ORIGINS`.  
+4. Ограничить `CORS_ORIGINS` и `WEBHOOK_ALLOWED_HOSTS`.  
 5. Бэкапы PostgreSQL, мониторинг Redis памяти и времени ответа `/health/ready`.  
 6. См. [SECURITY.md](SECURITY.md) для ответственного раскрытия уязвимостей.
 
@@ -84,6 +87,7 @@ Content-Type: application/json
 ```bash
 uv sync --all-groups
 uv run ruff check gateway workers models db tests
+uv run ruff check ../libs/edu_ml_common/edu_ml ../services --target-version py312 --line-length 120
 uv run pytest
 uv run python -m compileall -q gateway workers models db tests
 ```

@@ -8,7 +8,6 @@ import socket
 import uuid
 from typing import Any
 
-import httpx
 import redis.asyncio as redis
 from redis.exceptions import ResponseError
 
@@ -17,19 +16,12 @@ from db.session import get_session_factory
 from gateway.config import get_settings
 from gateway.services.cache import CacheService, analyze_cache_key, generate_cache_key
 from gateway.services.queue import STATUS_FAILED, STATUS_PROCESSING, QueueService
+from gateway.services.student_profile import merge_analysis_into_student_profile
+from gateway.services.webhook import deliver_webhook
 from models.broken_code_gen import BrokenCodeGenModel
 from models.code_analyze import CodeAnalyzeModel, score_to_difficulty
 
 logger = logging.getLogger(__name__)
-
-
-async def deliver_webhook(url: str, payload: dict[str, Any]) -> None:
-    try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            r = await client.post(url, json=payload)
-            r.raise_for_status()
-    except Exception:
-        logger.exception("Webhook POST failed: %s", url)
 
 
 async def persist_pipeline(
@@ -39,6 +31,7 @@ async def persist_pipeline(
     analysis: dict[str, Any],
     gen: dict[str, Any],
     difficulty: str,
+    generation_tags: list[str],
 ) -> None:
     factory = get_session_factory()
     async with factory() as session:
@@ -57,7 +50,7 @@ async def persist_pipeline(
         gt = GeneratedTask(
             student_id=student_uuid,
             analysis_id=aid,
-            tags=list(analysis.get("tags") or []),
+            tags=generation_tags,
             difficulty=difficulty,
             task_json=gen,
         )
@@ -124,7 +117,7 @@ class PipelineWorker:
         cached = await self._cache.get_json(pipeline_cache_key)
         if cached is not None:
             await self._queue.complete_with_result(task_id, cached)
-            await deliver_webhook(webhook_url, cached)
+            await deliver_webhook(webhook_url, cached, timeout=120.0)
             return
 
         ak = analyze_cache_key(task_description, code)
@@ -135,7 +128,13 @@ class PipelineWorker:
 
         score = int(analysis.get("score", 5))
         difficulty = score_to_difficulty(score)
-        tags = list(analysis.get("tags") or [])
+        profile_tags = await merge_analysis_into_student_profile(
+            self._redis,
+            student_id=str(student_uuid),
+            analysis=analysis,
+            ttl_seconds=self._settings.cache_ttl_seconds,
+        )
+        tags = profile_tags or list(analysis.get("tags") or [])
         if not tags:
             tags = ["general"]
 
@@ -145,16 +144,17 @@ class PipelineWorker:
             generated = await asyncio.to_thread(self._generator.infer_sync, tags, difficulty)
             await self._cache.set_json(gk, generated)
 
-        await persist_pipeline(student_uuid, task_description, code, analysis, generated, difficulty)
+        await persist_pipeline(student_uuid, task_description, code, analysis, generated, difficulty, tags)
 
         body: dict[str, Any] = {
             "student_id": student_external,
             "analysis": analysis,
             "generated_task": generated,
+            "profile_tags_used": tags,
         }
         await self._cache.set_json(pipeline_cache_key, body)
         await self._queue.complete_with_result(task_id, body)
-        await deliver_webhook(webhook_url, body)
+        await deliver_webhook(webhook_url, body, timeout=120.0)
 
 
 async def amain() -> None:

@@ -34,10 +34,14 @@ class QueueService:
         doc = {"status": status, "updated_at": time.time()}
         if error:
             doc["error"] = error
-        await self._r.set(status_key(task_id), json.dumps(doc, ensure_ascii=False))
+        await self._r.set(status_key(task_id), json.dumps(doc, ensure_ascii=False), ex=get_settings().cache_ttl_seconds)
 
     async def set_result(self, task_id: str, result: dict[str, Any]) -> None:
-        await self._r.set(result_key(task_id), json.dumps(result, ensure_ascii=False))
+        await self._r.set(
+            result_key(task_id),
+            json.dumps(result, ensure_ascii=False),
+            ex=get_settings().cache_ttl_seconds,
+        )
 
     async def get_snapshot(self, task_id: str) -> dict[str, Any] | None:
         st_raw = await self._r.get(status_key(task_id))

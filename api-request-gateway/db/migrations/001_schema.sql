@@ -49,6 +49,6 @@ INSERT INTO platforms (id, name, api_key, webhook_url)
 VALUES (
     'a0000000-0000-4000-8000-000000000001',
     'local-dev',
-    'dev-api-key',
+    '6e1e4e1b8f8b36d08901cdb51b97841dfe20f5efd2fd2fd00768971408c46274',
     NULL
 ) ON CONFLICT (api_key) DO NOTHING;

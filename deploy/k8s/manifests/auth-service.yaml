@@ -24,10 +24,34 @@ spec:
       labels:
         app: auth-service
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
           image: edu-ml-auth-service:latest
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsUser: 10001
+          env:
+            - name: AUTH_ENABLED
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: jwt-secret
+            - name: AUTH_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: auth-credentials
           ports:
             - name: http
               containerPort: 8000
