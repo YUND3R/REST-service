@@ -50,6 +50,11 @@ spec:
               value: generate_workers
             - name: MAX_NEW_TOKENS
               value: "1536"
+            - name: WEBHOOK_SIGNING_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-secrets
+                  key: webhook-signing-secret
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

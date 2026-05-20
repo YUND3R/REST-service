@@ -31,6 +31,7 @@ services:
       DOCS_ENABLED: "false"
       CORS_ORIGINS: ${CORS_ORIGINS:-https://app.example.com}
       WEBHOOK_ALLOWED_HOSTS: ${WEBHOOK_ALLOWED_HOSTS:-}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:?set WEBHOOK_SIGNING_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,6 +63,7 @@ services:
       DOCS_ENABLED: "false"
       CORS_ORIGINS: ${CORS_ORIGINS:-https://app.example.com}
       WEBHOOK_ALLOWED_HOSTS: ${WEBHOOK_ALLOWED_HOSTS:-}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:?set WEBHOOK_SIGNING_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -124,6 +126,7 @@ services:
       STREAM_GROUP_ANALYZE: analyze_workers
       CONSUMER_NAME: analyze-1
       MAX_NEW_TOKENS: "1024"
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:?set WEBHOOK_SIGNING_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -149,6 +152,7 @@ services:
       STREAM_GROUP_GENERATE: generate_workers
       CONSUMER_NAME: generate-1
       MAX_NEW_TOKENS: "1536"
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:?set WEBHOOK_SIGNING_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -175,6 +179,7 @@ services:
       STREAM_GROUP_PIPELINE: pipeline_workers
       CONSUMER_NAME: pipeline-1
       MAX_NEW_TOKENS: "1536"
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:?set WEBHOOK_SIGNING_SECRET}
     depends_on:
       postgres:
         condition: service_healthy

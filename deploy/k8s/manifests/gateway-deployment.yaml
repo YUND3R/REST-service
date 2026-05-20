@@ -51,6 +51,11 @@ spec:
               value: https://app.example.com
             - name: WEBHOOK_ALLOWED_HOSTS
               value: webhooks.example.com
+            - name: WEBHOOK_SIGNING_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-secrets
+                  key: webhook-signing-secret
           ports:
             - name: http
               containerPort: 8000

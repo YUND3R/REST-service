@@ -26,6 +26,7 @@ We aim to acknowledge within a few business days.
 - Set `DOCS_ENABLED=false` and expose `/docs` only on internal networks.  
 - Restrict `CORS_ORIGINS` to known LMS origins (avoid `*` in production).  
 - Restrict outbound webhook delivery with `WEBHOOK_ALLOWED_HOSTS`; do not allow private/internal IP targets.  
+- Verify webhook authenticity on the client side with `X-Webhook-Timestamp` and `X-Webhook-Signature` (HMAC-SHA256 over `timestamp.payload`).  
 - Terminate TLS at a reverse proxy or load balancer in front of Nginx.  
 - For Hugging Face model pulls in private environments, use `HF_TOKEN` with minimal scope and store in an enterprise secret store.  
 

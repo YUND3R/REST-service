@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import ipaddress
+import json
 import logging
 import os
 import socket
+import time
 from urllib.parse import urlparse
 
 import httpx
@@ -27,6 +31,27 @@ def _safe_url_label(url: str) -> str:
     port = f":{parsed.port}" if parsed.port else ""
     scheme = parsed.scheme or "<unknown>"
     return f"{scheme}://{host}{port}"
+
+
+def _webhook_signing_secret() -> str:
+    return os.getenv("WEBHOOK_SIGNING_SECRET", "").strip()
+
+
+def _webhook_signature_body(body: dict) -> str:
+    return json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def build_webhook_headers(body: dict, *, timestamp: int | None = None) -> dict[str, str]:
+    secret = _webhook_signing_secret()
+    if not secret:
+        return {}
+    ts = str(timestamp or int(time.time()))
+    payload = f"{ts}.{_webhook_signature_body(body)}".encode()
+    signature = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+    return {
+        "X-Webhook-Timestamp": ts,
+        "X-Webhook-Signature": f"sha256={signature}",
+    }
 
 
 def _is_forbidden_ip(value: str) -> bool:
@@ -78,8 +103,9 @@ async def validate_webhook_destination(url: str) -> None:
 async def deliver_webhook(url: str, body: dict, *, timeout: float = 30.0) -> None:
     try:
         await validate_webhook_destination(url)
+        headers = build_webhook_headers(body)
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
-            response = await client.post(url, json=body)
+            response = await client.post(url, json=body, headers=headers)
             response.raise_for_status()
     except UnsafeWebhookUrl:
         logger.warning("Unsafe webhook URL blocked: %s", _safe_url_label(url))
