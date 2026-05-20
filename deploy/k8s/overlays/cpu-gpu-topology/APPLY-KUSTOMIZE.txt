@@ -1,6 +1,0 @@
-Применять только подкаталоги ml и edge своим контекстом каждого кластера:
-
-kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/cpu-gpu-topology/ml | kubectl apply -f -
-kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/cpu-gpu-topology/edge | kubectl apply -f -
-
-Подробнее: NODE_LABELS.txt в этом каталоге.

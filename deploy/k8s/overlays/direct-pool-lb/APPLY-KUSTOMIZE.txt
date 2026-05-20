@@ -1,4 +1,0 @@
-Применять ml и edge отдельно:
-
-kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/direct-pool-lb/ml | kubectl apply -f -
-kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/overlays/direct-pool-lb/edge | kubectl apply -f -

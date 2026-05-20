@@ -40,6 +40,18 @@ spec:
             runAsUser: 999
           args:
             - redis-server
+            - --port
+            - "0"
+            - --tls-port
+            - "6379"
+            - --tls-cert-file
+            - /tls/tls.crt
+            - --tls-key-file
+            - /tls/tls.key
+            - --tls-ca-cert-file
+            - /tls/ca.crt
+            - --tls-auth-clients
+            - "no"
             - --appendonly
             - "yes"
             - --maxmemory-policy
@@ -50,6 +62,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: tls
+              mountPath: /tls
+              readOnly: true
           resources:
             requests:
               memory: 512Mi
@@ -60,3 +75,6 @@ spec:
       volumes:
         - name: data
           emptyDir: {}
+        - name: tls
+          secret:
+            secretName: redis-tls

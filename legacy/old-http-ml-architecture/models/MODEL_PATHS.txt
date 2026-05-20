@@ -1,6 +1,0 @@
-Веса не в Git — положите сюда локально (полный снимок Hugging Face: config.json, tokenizer, model*.safetensors).
-
-  code-analyze  ->  REST/models/code-analyze/
-  task-generate ->  REST/models/task-generate/
-
-Docker монтирует эти папки в /opt/models (см. docker-compose.yml в корне репозитория).

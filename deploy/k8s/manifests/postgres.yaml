@@ -37,9 +37,32 @@ spec:
     spec:
       securityContext:
         fsGroup: 999
-        runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: prepare-tls
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              cp /tls-src/tls.crt /tls/server.crt
+              cp /tls-src/tls.key /tls/server.key
+              chown 999:999 /tls/server.crt /tls/server.key
+              chmod 600 /tls/server.key
+              chmod 644 /tls/server.crt
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 0
+          volumeMounts:
+            - name: postgres-tls-src
+              mountPath: /tls-src
+              readOnly: true
+            - name: postgres-tls
+              mountPath: /tls
       containers:
         - name: postgres
           image: postgres:16-alpine
@@ -59,6 +82,13 @@ spec:
                 secretKeyRef:
                   name: postgres-secrets
                   key: password
+          args:
+            - -c
+            - ssl=on
+            - -c
+            - ssl_cert_file=/tls/server.crt
+            - -c
+            - ssl_key_file=/tls/server.key
           ports:
             - name: postgres
               containerPort: 5432
@@ -67,6 +97,9 @@ spec:
               mountPath: /var/lib/postgresql/data
             - name: schema
               mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            - name: postgres-tls
+              mountPath: /tls
               readOnly: true
           readinessProbe:
             exec:
@@ -92,3 +125,8 @@ spec:
         - name: schema
           configMap:
             name: postgres-schema
+        - name: postgres-tls-src
+          secret:
+            secretName: postgres-tls
+        - name: postgres-tls
+          emptyDir: {}

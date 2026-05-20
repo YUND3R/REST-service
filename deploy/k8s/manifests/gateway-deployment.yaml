@@ -31,7 +31,7 @@ spec:
             - name: LOG_LEVEL
               value: INFO
             - name: REDIS_URL
-              value: redis://redis:6379/0
+              value: "rediss://redis:6379/0?ssl_cert_reqs=required&ssl_ca_certs=/etc/edu-ml/redis-tls/ca.crt"
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -48,6 +48,10 @@ spec:
           ports:
             - name: http
               containerPort: 8000
+          volumeMounts:
+            - name: redis-tls
+              mountPath: /etc/edu-ml/redis-tls
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /health/ready
@@ -67,3 +71,7 @@ spec:
             limits:
               memory: 1Gi
               cpu: "2"
+      volumes:
+        - name: redis-tls
+          secret:
+            secretName: redis-tls

@@ -5,6 +5,7 @@ resources:
   - ../../manifests/namespace.yaml
   - ../../manifests/redis.yaml
   - ../../manifests/postgres.yaml
+  - ../../manifests/network-policy-data-tier.yaml
   - ../../manifests/worker-analyze.yaml
   - ../../manifests/worker-generate.yaml
   - ../../manifests/worker-pipeline.yaml

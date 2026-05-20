@@ -30,7 +30,7 @@ spec:
             - name: LOG_LEVEL
               value: INFO
             - name: REDIS_URL
-              value: redis://redis:6379/0
+              value: "rediss://redis:6379/0?ssl_cert_reqs=required&ssl_ca_certs=/etc/edu-ml/redis-tls/ca.crt"
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -50,6 +50,10 @@ spec:
               drop:
                 - ALL
             runAsUser: 10001
+          volumeMounts:
+            - name: redis-tls
+              mountPath: /etc/edu-ml/redis-tls
+              readOnly: true
           resources:
             requests:
               cpu: "2"
@@ -57,3 +61,7 @@ spec:
               nvidia.com/gpu: "1"
             limits:
               nvidia.com/gpu: "1"
+      volumes:
+        - name: redis-tls
+          secret:
+            secretName: redis-tls

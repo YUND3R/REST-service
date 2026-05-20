@@ -99,7 +99,7 @@ uv run python -m compileall -q gateway workers models db tests
 
 **CD** — `.github/workflows/cd.yml`: push в `main`/`master`, тег `v*` или вручную — образ в **GHCR** (`ghcr.io/<org>/<repo>`).
 
-**Kubernetes** — целевая топология продакшена: **ровно два кластера**. `.github/workflows/deploy-k8s.yml`: сначала кластер **ML** (`kubectl kustomize deploy/k8s/clusters/ml | apply`), затем **edge** (`deploy/k8s/clusters/edge`). В `deploy/k8s/` нет корневой сборки монолита; общие YAML — только в `deploy/k8s/manifests/` без `kustomization.yaml`. См. `deploy/k8s/clusters/README.txt`. Триггеры: изменения в `deploy/k8s/**`, успешный прогон **CD**, либо ручной *workflow_dispatch*. Секреты репозитория или сред: **`KUBECONFIG_ML`**, **`KUBECONFIG_EDGE`** (полный kubeconfig). Опционально среды **k8s-ml** / **k8s-edge** и переменные **`K8S_ML_URL`**, **`K8S_EDGE_URL`**.
+**Kubernetes** — целевая топология продакшена: **ровно два кластера**. `.github/workflows/deploy-k8s.yml`: сначала кластер **ML** (`kubectl kustomize deploy/k8s/clusters/ml | apply`), затем **edge** (`deploy/k8s/clusters/edge`). В `deploy/k8s/` нет корневой сборки монолита; общие YAML — только в `deploy/k8s/manifests/` без `kustomization.yaml`. Триггеры: изменения в `deploy/k8s/**`, успешный прогон **CD**, либо ручной *workflow_dispatch*. Секреты репозитория или сред: **`KUBECONFIG_ML`**, **`KUBECONFIG_EDGE`** (полный kubeconfig). Опционально среды **k8s-ml** / **k8s-edge** и переменные **`K8S_ML_URL`**, **`K8S_EDGE_URL`**.
 
 ## Лицензия
 
