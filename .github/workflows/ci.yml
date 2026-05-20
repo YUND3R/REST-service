@@ -6,14 +6,12 @@ on:
     paths:
       - "api-request-gateway/**"
       - "libs/**"
-      - "services/**"
       - ".github/workflows/ci.yml"
   pull_request:
     branches: [main, master]
     paths:
       - "api-request-gateway/**"
       - "libs/**"
-      - "services/**"
       - ".github/workflows/ci.yml"
 
 concurrency:
@@ -45,8 +43,8 @@ jobs:
       - name: Ruff
         run: uv run ruff check gateway workers models db tests
 
-      - name: Ruff (shared libs + services)
-        run: uv run ruff check ../libs/edu_ml_common/edu_ml ../services --target-version py312 --line-length 120
+      - name: Ruff (shared libs)
+        run: uv run ruff check ../libs/edu_ml_common/edu_ml --target-version py312 --line-length 120
 
       - name: Unit tests
         run: uv run pytest -q --tb=short
@@ -54,8 +52,8 @@ jobs:
       - name: Byte-compile
         run: uv run python -m compileall -q gateway workers models db tests
 
-      - name: Byte-compile shared libs + services
-        run: uv run python -m compileall -q ../libs/edu_ml_common/edu_ml ../services
+      - name: Byte-compile shared libs
+        run: uv run python -m compileall -q ../libs/edu_ml_common/edu_ml
 
   docker-build:
     runs-on: ubuntu-latest

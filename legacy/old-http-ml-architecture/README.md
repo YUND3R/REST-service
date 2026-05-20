@@ -11,6 +11,8 @@
 - `redis-analyze` и `redis-generate` как две отдельные Redis-инстанции.
 - `ml-balancer` как HTTP-router внутри ML-кластера.
 - SQS worker-профиль для отдельных ML-сервисов.
+- Terraform для старых SQS/S3 контуров.
+- Старые root-level `requirements.*`, `.env.example` и заметки по локальным путям моделей.
 
 ## Почему вынесено в legacy
 
@@ -29,3 +31,11 @@
 - `api-request-gateway/docker-compose.yml` для локального запуска.
 
 Файлы в этой папке нужны только для истории, сравнения или ручного восстановления старой схемы.
+
+## Состав папки
+
+- `services/` — старые отдельные HTTP-сервисы и SQS workers.
+- `k8s/manifests/` — старые manifest-фрагменты для HTTP ML, `ml-balancer`, `auth-service`, двух Redis.
+- `k8s/overlays/` — старые overlay для mTLS/direct LB и legacy GPU/auth patches.
+- `terraform/` — старые SQS/S3 заготовки.
+- `docker-compose.yml` — старый локальный запуск отдельного ML-контура.

@@ -3,19 +3,19 @@ kind: Kustomization
 namespace: edu-ml
 resources:
   - ../../../../deploy/k8s/manifests/namespace.yaml
-  - ../../../../deploy/k8s/manifests/redis-analyze.yaml
-  - ../../../../deploy/k8s/manifests/redis-generate.yaml
-  - ../../../../deploy/k8s/manifests/code-analyze.yaml
-  - ../../../../deploy/k8s/manifests/task-generate.yaml
-  - ../../../../deploy/k8s/manifests/ml-balancer-deployment.yaml
-  - ../../../../deploy/k8s/manifests/ml-balancer-service.yaml
-  - ../../../../deploy/k8s/manifests/network-policy-ml-tier.yaml
+  - ../manifests/redis-analyze.yaml
+  - ../manifests/redis-generate.yaml
+  - ../manifests/code-analyze.yaml
+  - ../manifests/task-generate.yaml
+  - ../manifests/ml-balancer-deployment.yaml
+  - ../manifests/ml-balancer-service.yaml
+  - ../manifests/network-policy-ml-tier.yaml
 patches:
   - path: ../../../../deploy/k8s/clusters/ml/namespace-labels.yaml
 configMapGenerator:
   - name: ml-balancer-nginx-conf
     files:
-      - default.conf=../../../../deploy/k8s/manifests/files/ml-balancer.conf
+      - default.conf=../manifests/files/ml-balancer.conf
 generatorOptions:
   disableNameSuffixHash: true
 images:

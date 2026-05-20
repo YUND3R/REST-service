@@ -10,10 +10,10 @@ RUN useradd --create-home --uid 10001 appuser
 COPY --chown=appuser:appuser libs/edu_ml_common /opt/libs/edu_ml_common
 ENV PYTHONPATH=/opt/libs/edu_ml_common:/opt/svc
 
-COPY services/auth-service/requirements.txt /tmp/requirements.txt
+COPY legacy/old-http-ml-architecture/services/auth-service/requirements.txt /tmp/requirements.txt
 RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt
 
-COPY --chown=appuser:appuser services/auth-service/app /opt/svc/app
+COPY --chown=appuser:appuser legacy/old-http-ml-architecture/services/auth-service/app /opt/svc/app
 
 USER appuser
 

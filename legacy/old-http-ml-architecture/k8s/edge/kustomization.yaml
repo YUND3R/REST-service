@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: edu-ml
 resources:
   - ../../../../deploy/k8s/manifests/namespace.yaml
-  - ../../../../deploy/k8s/manifests/auth-service.yaml
+  - ../manifests/auth-service.yaml
   - ../../../../deploy/k8s/manifests/gateway-deployment.yaml
   - ../../../../deploy/k8s/manifests/gateway-service.yaml
   - ../../../../deploy/k8s/clusters/edge/edge-balancer-deployment.yaml
@@ -13,7 +13,7 @@ resources:
 configMapGenerator:
   - name: gateway-nginx-conf
     files:
-      - default.conf=../../../../deploy/k8s/manifests/files/default.conf
+      - default.conf=../manifests/files/default.conf
   - name: edge-balancer-nginx-conf
     files:
       - default.conf=../../../../deploy/k8s/clusters/edge/files/edge-balancer.conf

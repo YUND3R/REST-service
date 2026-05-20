@@ -88,7 +88,7 @@ Content-Type: application/json
 ```bash
 uv sync --all-groups
 uv run ruff check gateway workers models db tests
-uv run ruff check ../libs/edu_ml_common/edu_ml ../services --target-version py312 --line-length 120
+uv run ruff check ../libs/edu_ml_common/edu_ml --target-version py312 --line-length 120
 uv run pytest
 uv run python -m compileall -q gateway workers models db tests
 ```

@@ -28,7 +28,7 @@ services:
   auth-service:
     build:
       context: ../..
-      dockerfile: services/auth-service/Dockerfile
+      dockerfile: legacy/old-http-ml-architecture/services/auth-service/Dockerfile
     image: edu-ml-auth-service:latest
     env_file:
       - path: ../../.env
@@ -50,7 +50,7 @@ services:
   code-analyze:
     build:
       context: ../..
-      dockerfile: services/code-analyze/Dockerfile
+      dockerfile: legacy/old-http-ml-architecture/services/code-analyze/Dockerfile
     image: edu-ml-code-analyze:latest
     env_file:
       - path: ../../.env
@@ -83,7 +83,7 @@ services:
   task-generate:
     build:
       context: ../..
-      dockerfile: services/task-generate/Dockerfile
+      dockerfile: legacy/old-http-ml-architecture/services/task-generate/Dockerfile
     image: edu-ml-task-generate:latest
     env_file:
       - path: ../../.env
@@ -118,7 +118,7 @@ services:
     image: edu-ml-code-analyze:latest
     build:
       context: ../..
-      dockerfile: services/code-analyze/Dockerfile
+      dockerfile: legacy/old-http-ml-architecture/services/code-analyze/Dockerfile
     env_file:
       - path: ../../.env
         required: false
@@ -145,7 +145,7 @@ services:
     image: edu-ml-task-generate:latest
     build:
       context: ../..
-      dockerfile: services/task-generate/Dockerfile
+      dockerfile: legacy/old-http-ml-architecture/services/task-generate/Dockerfile
     env_file:
       - path: ../../.env
         required: false
