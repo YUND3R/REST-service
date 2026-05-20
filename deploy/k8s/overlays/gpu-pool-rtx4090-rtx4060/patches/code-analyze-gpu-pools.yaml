@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: worker-pipeline
+  name: worker-analyze
 spec:
   template:
     spec:
@@ -17,8 +17,8 @@ spec:
                   - key: edu-ml.io/gpu-class
                     operator: In
                     values:
-                      - rtx5000
-                      - a100
+                      - rtx4090
+                      - rtx4060
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               preference:
@@ -26,7 +26,7 @@ spec:
                   - key: edu-ml.io/gpu-class
                     operator: In
                     values:
-                      - a100
+                      - rtx4090
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists
