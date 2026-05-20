@@ -26,6 +26,20 @@ class FakeRedis:
     async def hgetall(self, key: str) -> dict[str, str]:
         return dict(self.hashes.get(key, {}))
 
+    async def lpush(self, key: str, value: str) -> None:
+        self.strings.setdefault(f"__list__{key}", "[]")
+        items = json.loads(self.strings[f"__list__{key}"])
+        items.insert(0, value)
+        self.strings[f"__list__{key}"] = json.dumps(items, ensure_ascii=False)
+
+    async def ltrim(self, key: str, start: int, stop: int) -> None:
+        items = json.loads(self.strings.get(f"__list__{key}", "[]"))
+        self.strings[f"__list__{key}"] = json.dumps(items[start : stop + 1], ensure_ascii=False)
+
+    async def lrange(self, key: str, start: int, stop: int) -> list[str]:
+        items = json.loads(self.strings.get(f"__list__{key}", "[]"))
+        return items[start : stop + 1]
+
     async def get(self, key: str) -> str | None:
         return self.strings.get(key)
 
@@ -64,8 +78,12 @@ async def test_merge_analysis_updates_profile_and_weakest_tags() -> None:
 
     assert weakest == ["Graphs", "Arrays"]
     assert await get_weakest_tags(r, student_id="student-1", limit=1) == ["Graphs"]
-    profile = json.loads(r.strings["student:student-1:profile"])
+    profile = json.loads(r.strings["student_profile:student-1"])
+    assert profile["id"] == "student-1"
     assert profile["weak_tags"] == ["Graphs", "Arrays"]
+    assert "tag_stats" in profile and "Graphs" in profile["tag_stats"]
+    assert "history" in profile and profile["history"][0]["kind"] == "analyze"
     assert profile["all_tags_used"] == ["Arrays", "Graphs"]
-    assert r.expires["student:student-1:profile"] == 60
-    assert r.expires["student:student-1:tag_stats"] == 60
+    assert r.expires["student_profile:student-1"] == 60
+    assert r.expires["student_profile:student-1:tag_stats"] == 60
+    assert r.expires["student_profile:student-1:history"] == 60

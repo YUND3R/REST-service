@@ -8,14 +8,19 @@ import redis.asyncio as redis
 
 MIN_SCORE = 1.0
 MAX_SCORE = 10.0
+HISTORY_MAX = 100
+
+
+def _base_profile_key(student_id: str) -> str:
+    return f"student_profile:{student_id}"
 
 
 def _tag_stats_key(student_id: str) -> str:
-    return f"student:{student_id}:tag_stats"
+    return f"{_base_profile_key(student_id)}:tag_stats"
 
 
-def _profile_key(student_id: str) -> str:
-    return f"student:{student_id}:profile"
+def _history_key(student_id: str) -> str:
+    return f"{_base_profile_key(student_id)}:history"
 
 
 def _clamp_score(value: Any) -> float | None:
@@ -76,6 +81,23 @@ def _mean_score(raw: str | None) -> float | None:
         return None
 
 
+def _parse_tag_stats(raw_stats: dict[str, str]) -> dict[str, dict[str, float | int]]:
+    out: dict[str, dict[str, float | int]] = {}
+    for tag, raw in raw_stats.items():
+        try:
+            payload = json.loads(raw)
+            total = float(payload.get("sum", 0.0))
+            count = int(payload.get("count", 0))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        if count < 0:
+            continue
+        if total < 0:
+            total = 0.0
+        out[str(tag)] = {"sum": total, "count": count}
+    return out
+
+
 async def merge_analysis_into_student_profile(
     r: redis.Redis,
     *,
@@ -87,13 +109,27 @@ async def merge_analysis_into_student_profile(
     if not tag_scores:
         return []
 
+    profile_key = _base_profile_key(student_id)
     stats_key = _tag_stats_key(student_id)
+    history_key = _history_key(student_id)
+
+    history_row = json.dumps(
+        {
+            "kind": "analyze",
+            "score": analysis.get("score"),
+            "tags": list(tag_scores),
+            "stored_at": time.time(),
+        },
+        ensure_ascii=False,
+    )
+    await r.lpush(history_key, history_row)
+    await r.ltrim(history_key, 0, HISTORY_MAX - 1)
+
     for tag, score in tag_scores.items():
         prev = await r.hget(stats_key, tag)
         await r.hset(stats_key, tag, _merge_sample(prev, score))
 
     weakest = await get_weakest_tags(r, student_id=student_id, limit=3)
-    profile_key = _profile_key(student_id)
     raw_profile = await r.get(profile_key)
     try:
         profile = json.loads(raw_profile) if raw_profile else {}
@@ -104,17 +140,31 @@ async def merge_analysis_into_student_profile(
     if not isinstance(previous_tags, list):
         previous_tags = []
     merged_tags = list(dict.fromkeys([str(t).strip() for t in previous_tags if str(t).strip()] + list(tag_scores)))
+    parsed_stats = _parse_tag_stats(await r.hgetall(stats_key))
+
+    raw_history = await r.lrange(history_key, 0, HISTORY_MAX - 1)
+    parsed_history: list[dict[str, Any]] = []
+    for row in raw_history:
+        try:
+            parsed_history.append(json.loads(row))
+        except json.JSONDecodeError:
+            continue
+
     profile.update(
         {
+            "id": student_id,
             "weak_tags": weakest,
-            "all_tags_used": merged_tags,
-            "last_analysis_score": analysis.get("score"),
+            "tag_stats": parsed_stats,
+            "history": parsed_history,
             "updated_at": time.time(),
         }
     )
+    profile["all_tags_used"] = merged_tags
+
     await r.set(profile_key, json.dumps(profile, ensure_ascii=False), ex=ttl_seconds)
     if ttl_seconds:
         await r.expire(stats_key, ttl_seconds)
+        await r.expire(history_key, ttl_seconds)
     return weakest
 
 

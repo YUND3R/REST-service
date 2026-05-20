@@ -159,6 +159,19 @@ class UserProfilePut(BaseModel):
         return out[:512]
 
 
+class TagStatsSample(BaseModel):
+    sum: float = Field(..., ge=0)
+    count: int = Field(..., ge=0)
+
+
+class StudentProfileContract(BaseModel):
+    id: str = Field(..., min_length=1)
+    weak_tags: list[str] = Field(default_factory=list)
+    tag_stats: dict[str, TagStatsSample] = Field(default_factory=dict)
+    history: list[dict[str, Any]] = Field(default_factory=list)
+    updated_at: str | float | None = None
+
+
 class UserProgressPut(BaseModel):
     weak_tags: list[str] = Field(..., min_length=1, max_length=32)
     difficulty: Literal["easy", "medium", "hard"] = "medium"
