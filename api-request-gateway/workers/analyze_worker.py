@@ -16,7 +16,6 @@ from db.session import get_session_factory
 from gateway.config import get_settings
 from gateway.services.cache import CacheService
 from gateway.services.queue import STATUS_FAILED, STATUS_PROCESSING, QueueService
-from gateway.services.webhook import deliver_webhook
 from models.code_analyze import CodeAnalyzeModel
 
 logger = logging.getLogger(__name__)
@@ -112,7 +111,7 @@ class AnalyzeWorker:
 
         body: dict[str, Any] = {"student_id": student_external, "analysis": analysis}
         await self._queue.complete_with_result(task_id, body)
-        await deliver_webhook(webhook_url, body, timeout=60.0)
+        await self._queue.enqueue_webhook(webhook_url, body, task_id=task_id)
 
 
 async def amain() -> None:

@@ -177,3 +177,35 @@ async def get_weakest_tags(r: redis.Redis, *, student_id: str, limit: int = 3) -
             scored.append((str(tag), mean))
     scored.sort(key=lambda item: item[1])
     return [tag for tag, _ in scored[: max(0, limit)]]
+
+
+async def get_student_profile(r: redis.Redis, *, student_id: str) -> dict[str, Any] | None:
+    raw_profile = await r.get(_base_profile_key(student_id))
+    if raw_profile:
+        try:
+            profile = json.loads(raw_profile)
+            if isinstance(profile, dict):
+                return profile
+        except json.JSONDecodeError:
+            pass
+
+    stats = _parse_tag_stats(await r.hgetall(_tag_stats_key(student_id)))
+    history_rows = await r.lrange(_history_key(student_id), 0, HISTORY_MAX - 1)
+    history: list[dict[str, Any]] = []
+    for row in history_rows:
+        try:
+            parsed = json.loads(row)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            history.append(parsed)
+
+    if not stats and not history:
+        return None
+
+    return {
+        "id": student_id,
+        "weak_tags": await get_weakest_tags(r, student_id=student_id, limit=3),
+        "tag_stats": stats,
+        "history": history,
+    }

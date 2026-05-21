@@ -103,4 +103,5 @@ jobs:
         continue-on-error: true
         run: |
           kubectl -n edu-ml rollout status deployment/gateway --timeout=120s || true
+          kubectl -n edu-ml rollout status deployment/webhook-dispatcher --timeout=120s || true
           kubectl -n edu-ml rollout status deployment/edge-balancer --timeout=120s || true

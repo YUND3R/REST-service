@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from db.session import get_engine, ping_database
 from gateway.config import get_settings
-from gateway.routers import analyze, generate, pipeline, status
+from gateway.routers import analyze, generate, pipeline, status, students
 from gateway.services.cache import CacheService
 from gateway.services.queue import QueueService
 
@@ -75,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(generate.router, prefix="/api/v1")
     app.include_router(pipeline.router, prefix="/api/v1")
     app.include_router(status.router, prefix="/api/v1")
+    app.include_router(students.router, prefix="/api/v1")
 
     @app.get("/health")
     async def health_root():

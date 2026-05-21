@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     stream_analyze: str = "queue:analyze"
     stream_generate: str = "queue:generate"
     stream_pipeline: str = "queue:pipeline"
+    stream_webhook: str = "queue:webhook"
 
     @field_validator("docs_enabled", mode="before")
     @classmethod

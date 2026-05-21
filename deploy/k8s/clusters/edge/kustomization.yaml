@@ -5,6 +5,7 @@ resources:
   - ../../manifests/namespace.yaml
   - ../../manifests/gateway-deployment.yaml
   - ../../manifests/gateway-service.yaml
+  - ../../manifests/webhook-dispatcher.yaml
   - edge-balancer-deployment.yaml
   - edge-balancer-service.yaml
   - ingress.yaml

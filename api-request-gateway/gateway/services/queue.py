@@ -39,6 +39,16 @@ class QueueService:
         platform_id: str | None = None,
     ) -> None:
         doc = {"status": status, "updated_at": time.time()}
+        if platform_id is None:
+            raw = await self._r.get(status_key(task_id))
+            if raw:
+                try:
+                    previous = json.loads(raw)
+                    previous_platform_id = previous.get("platform_id")
+                    if previous_platform_id:
+                        platform_id = str(previous_platform_id)
+                except json.JSONDecodeError:
+                    pass
         if platform_id is not None:
             doc["platform_id"] = platform_id
         if error:
@@ -82,6 +92,8 @@ class QueueService:
             return "analyze_workers"
         if stream == s.stream_generate:
             return "generate_workers"
+        if stream == s.stream_webhook:
+            return "webhook_dispatchers"
         return "pipeline_workers"
 
     async def enqueue_analyze(self, payload: dict[str, Any], *, task_id: str | None = None) -> str:
@@ -117,3 +129,13 @@ class QueueService:
         platform_id = str(snap["platform_id"]) if snap and snap.get("platform_id") else None
         await self.set_status(task_id, STATUS_DONE, platform_id=platform_id)
         await self.set_result(task_id, result)
+
+    async def enqueue_webhook(self, url: str, body: dict[str, Any], *, task_id: str) -> None:
+        s = get_settings()
+        event = {
+            "task_id": task_id,
+            "webhook_url": url,
+            "body": body,
+        }
+        await self._r.xadd(s.stream_webhook, {"data": json.dumps(event, ensure_ascii=False)})
+        await self.ensure_stream(s.stream_webhook)

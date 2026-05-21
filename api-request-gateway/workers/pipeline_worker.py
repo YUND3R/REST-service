@@ -17,7 +17,6 @@ from gateway.config import get_settings
 from gateway.services.cache import CacheService, analyze_cache_key, generate_cache_key
 from gateway.services.queue import STATUS_FAILED, STATUS_PROCESSING, QueueService
 from gateway.services.student_profile import merge_analysis_into_student_profile
-from gateway.services.webhook import deliver_webhook
 from models.broken_code_gen import BrokenCodeGenModel
 from models.code_analyze import CodeAnalyzeModel, score_to_difficulty
 
@@ -117,7 +116,7 @@ class PipelineWorker:
         cached = await self._cache.get_json(pipeline_cache_key)
         if cached is not None:
             await self._queue.complete_with_result(task_id, cached)
-            await deliver_webhook(webhook_url, cached, timeout=120.0)
+            await self._queue.enqueue_webhook(webhook_url, cached, task_id=task_id)
             return
 
         ak = analyze_cache_key(task_description, code)
@@ -154,7 +153,7 @@ class PipelineWorker:
         }
         await self._cache.set_json(pipeline_cache_key, body)
         await self._queue.complete_with_result(task_id, body)
-        await deliver_webhook(webhook_url, body, timeout=120.0)
+        await self._queue.enqueue_webhook(webhook_url, body, task_id=task_id)
 
 
 async def amain() -> None:

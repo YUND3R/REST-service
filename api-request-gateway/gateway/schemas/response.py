@@ -41,5 +41,35 @@ class TaskStatusResponse(BaseModel):
     result: dict[str, Any] | None = None
 
 
+class StudentHistoryAnalysis(BaseModel):
+    id: str
+    task_description: str
+    score: int | None = None
+    weak_spots: list[Any] | None = None
+    tags: list[str] | None = None
+    recommendations: list[Any] | None = None
+    created_at: str
+
+
+class StudentHistoryGeneratedTask(BaseModel):
+    id: str
+    analysis_id: str | None = None
+    tags: list[str] | None = None
+    difficulty: str
+    task: dict[str, Any]
+    created_at: str
+
+
+class StudentHistoryResponse(BaseModel):
+    student_id: str
+    analyses: list[StudentHistoryAnalysis]
+    generated_tasks: list[StudentHistoryGeneratedTask]
+
+
+class StudentProfileResponse(BaseModel):
+    student_id: str
+    profile: dict[str, Any]
+
+
 class ErrorResponse(BaseModel):
     detail: str

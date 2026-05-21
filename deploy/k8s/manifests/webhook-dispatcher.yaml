@@ -1,29 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: worker-generate
+  name: webhook-dispatcher
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
-      app: worker-generate
+      app: webhook-dispatcher
   template:
     metadata:
       labels:
-        app: worker-generate
+        app: webhook-dispatcher
     spec:
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: worker
+        - name: dispatcher
           image: api-request-gateway:latest
           imagePullPolicy: IfNotPresent
           command:
             - python
             - -m
-            - workers.generate_worker
+            - workers.webhook_dispatcher
           env:
             - name: ENVIRONMENT
               value: production
@@ -31,25 +31,15 @@ spec:
               value: INFO
             - name: REDIS_URL
               value: "rediss://redis:6379/0?ssl_cert_reqs=required&ssl_ca_certs=/etc/edu-ml/redis-tls/ca.crt&ssl_certfile=/etc/edu-ml/redis-client-tls/tls.crt&ssl_keyfile=/etc/edu-ml/redis-client-tls/tls.key"
-            - name: DATABASE_URL
+            - name: STREAM_GROUP_WEBHOOK
+              value: webhook_dispatchers
+            - name: WEBHOOK_ALLOWED_HOSTS
+              value: webhooks.example.com
+            - name: WEBHOOK_SIGNING_SECRET
               valueFrom:
                 secretKeyRef:
                   name: gateway-secrets
-                  key: database-url
-            - name: POSTGRES_SSL_CA_FILE
-              value: /etc/edu-ml/postgres-client-tls/ca.crt
-            - name: POSTGRES_SSL_CERT_FILE
-              value: /etc/edu-ml/postgres-client-tls/tls.crt
-            - name: POSTGRES_SSL_KEY_FILE
-              value: /etc/edu-ml/postgres-client-tls/tls.key
-            - name: BROKEN_CODE_MODEL_ID
-              value: Vilyam888/Broken_Code_Generation.1.0
-            - name: LOAD_IN_4BIT
-              value: "true"
-            - name: STREAM_GROUP_GENERATE
-              value: generate_workers
-            - name: MAX_NEW_TOKENS
-              value: "1536"
+                  key: webhook-signing-secret
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -63,16 +53,13 @@ spec:
             - name: redis-client-tls
               mountPath: /etc/edu-ml/redis-client-tls
               readOnly: true
-            - name: postgres-client-tls
-              mountPath: /etc/edu-ml/postgres-client-tls
-              readOnly: true
           resources:
             requests:
-              cpu: "2"
-              memory: 8Gi
-              nvidia.com/gpu: "1"
+              memory: 256Mi
+              cpu: 100m
             limits:
-              nvidia.com/gpu: "1"
+              memory: 512Mi
+              cpu: "1"
       volumes:
         - name: redis-tls
           secret:
@@ -80,6 +67,3 @@ spec:
         - name: redis-client-tls
           secret:
             secretName: redis-client-tls
-        - name: postgres-client-tls
-          secret:
-            secretName: postgres-client-tls
