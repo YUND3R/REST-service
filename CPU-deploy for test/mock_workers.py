@@ -186,6 +186,7 @@ class CpuMockWorkers:
 
 async def amain() -> None:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+    logger.info("CPU mock workers started: analyze, generate and pipeline queues are active")
     await CpuMockWorkers().run()
 
 
