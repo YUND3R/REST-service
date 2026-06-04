@@ -3,19 +3,26 @@ kind: Ingress
 metadata:
   name: edu-ml-api
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: 32m
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
-  ingressClassName: nginx
   tls:
     - hosts:
         - cpu-test2clusteres.ru
       secretName: edu-ml-tls
+    - secretName: edu-ml-tls
   rules:
     - host: cpu-test2clusteres.ru
       http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: edge-balancer
+                port:
+                  number: 80
+    - http:
         paths:
           - path: /
             pathType: Prefix

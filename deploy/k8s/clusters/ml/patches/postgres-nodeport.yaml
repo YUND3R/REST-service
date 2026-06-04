@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: postgres
 spec:
-  type: ExternalName
-  externalName: postgres.ml.example.internal
+  type: NodePort
   ports:
     - name: postgres
       port: 5432
       targetPort: 5432
+      nodePort: 30432

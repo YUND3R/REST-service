@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: api
+          env:
+            - name: REDIS_URL
+              value: "rediss://redis:6379/0?ssl_cert_reqs=required&ssl_check_hostname=false&ssl_ca_certs=/etc/edu-ml/redis-tls/ca.crt&ssl_certfile=/etc/edu-ml/redis-client-tls/tls.crt&ssl_keyfile=/etc/edu-ml/redis-client-tls/tls.key"
+            - name: POSTGRES_SSL_CHECK_HOSTNAME
+              value: "false"
+            - name: CORS_ORIGINS
+              value: "*"
+            - name: WEBHOOK_ALLOWED_HOSTS
+              value: ""
+            - name: DOCS_ENABLED
+              value: "true"
+          readinessProbe:
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            failureThreshold: 6

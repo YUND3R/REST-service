@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: prepare-tls
+          $patch: delete
+      containers:
+        - name: postgres
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          args:
+            - -c
+            - ssl=on
+            - -c
+            - ssl_cert_file=/tls/tls.crt
+            - -c
+            - ssl_key_file=/tls/tls.key
+            - -c
+            - ssl_ca_file=/tls/ca.crt
+            - -c
+            - hba_file=/etc/postgresql/pg_hba.conf
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: schema
+          configMap:
+            name: postgres-schema
+        - name: postgres-tls
+          secret:
+            secretName: postgres-tls
+            defaultMode: 384
+        - name: postgres-hba
+          configMap:
+            name: postgres-hba
+        - $patch: replace

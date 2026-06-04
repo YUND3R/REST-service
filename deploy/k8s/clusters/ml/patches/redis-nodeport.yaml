@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: redis
 spec:
-  type: ExternalName
-  externalName: redis.ml.example.internal
+  type: NodePort
   ports:
     - name: redis
       port: 6379
       targetPort: 6379
+      nodePort: 30637

@@ -11,6 +11,11 @@ resources:
   - ../../manifests/worker-pipeline.yaml
 patches:
   - path: namespace-labels.yaml
+  - path: patches/remove-postgres-pvc.yaml
+  - path: patches/postgres-emptydir-cpu-test.yaml
+  - path: patches/workers-scale-zero-cpu-test.yaml
+  - path: patches/redis-nodeport.yaml
+  - path: patches/postgres-nodeport.yaml
 configMapGenerator:
   - name: postgres-schema
     files:

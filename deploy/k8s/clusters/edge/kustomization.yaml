@@ -9,14 +9,36 @@ resources:
   - edge-balancer-deployment.yaml
   - edge-balancer-service.yaml
   - ingress.yaml
-  - redis-externalname.yaml
-  - postgres-externalname.yaml
+  - ml-cross-cluster-services.yaml
 configMapGenerator:
   - name: edge-balancer-nginx-conf
     files:
       - default.conf=files/edge-balancer.conf
+  - name: ml-cross-cluster-config
+    envs:
+      - files/ml-node-host.env
 generatorOptions:
   disableNameSuffixHash: true
+replacements:
+  - source:
+      kind: ConfigMap
+      name: ml-cross-cluster-config
+      fieldPath: data.ML_NODE_HOST
+    targets:
+      - select:
+          kind: Endpoints
+          name: redis
+        fieldPaths:
+          - subsets.0.addresses.0.ip
+      - select:
+          kind: Endpoints
+          name: postgres
+        fieldPaths:
+          - subsets.0.addresses.0.ip
+patches:
+  - path: patches/gateway-cpu-test.yaml
+  - path: patches/ingress-cpu-test.yaml
+  - path: patches/webhook-cpu-test.yaml
 images:
   - name: api-request-gateway
     newName: ghcr.io/yund3r/rest-service

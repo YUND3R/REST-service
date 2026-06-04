@@ -1,0 +1,38 @@
+# Edge stack with co-located Redis/Postgres (no cross-cluster routing).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: edu-ml
+resources:
+  - ../../manifests/namespace.yaml
+  - ../../manifests/gateway-deployment.yaml
+  - ../../manifests/gateway-service.yaml
+  - ../../manifests/webhook-dispatcher.yaml
+  - ../edge/edge-balancer-deployment.yaml
+  - ../edge/edge-balancer-service.yaml
+  - ../edge/ingress.yaml
+  - ../../manifests/redis.yaml
+  - ../../manifests/postgres.yaml
+  - ../../manifests/network-policy-data-tier.yaml
+configMapGenerator:
+  - name: edge-balancer-nginx-conf
+    files:
+      - default.conf=../edge/files/edge-balancer.conf
+  - name: postgres-schema
+    files:
+      - 001_schema.sql=../../../../api-request-gateway/db/migrations/001_schema.sql
+  - name: postgres-hba
+    files:
+      - pg_hba.conf=files/pg_hba-cpu-test.conf
+generatorOptions:
+  disableNameSuffixHash: true
+patches:
+  - path: ../edge/patches/gateway-cpu-test.yaml
+  - path: ../edge/patches/ingress-cpu-test.yaml
+  - path: ../edge/patches/webhook-cpu-test.yaml
+  - path: ../ml/patches/remove-postgres-pvc.yaml
+  - path: ../ml/patches/postgres-emptydir-cpu-test.yaml
+  - path: patches/network-policy-allow-gateway.yaml
+images:
+  - name: api-request-gateway
+    newName: ghcr.io/yund3r/rest-service
+    newTag: latest
