@@ -19,7 +19,7 @@ CODE_ANALYZE_SAMPLES = REPO_ROOT / "CODE ANALYZE.json"
 
 def _load_sample(path: Path) -> list[dict[str, Any]]:
     if not path.is_file():
-        pytest.skip(f"training sample file not found: {path.name}")
+        pytest.skip(f"dataset not available: {path.name}")
     raw = json.loads(path.read_text(encoding="utf-8-sig"))
     assert isinstance(raw, list)
     assert raw

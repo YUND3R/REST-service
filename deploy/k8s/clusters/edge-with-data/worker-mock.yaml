@@ -1,4 +1,3 @@
-# Mock inference worker for environments without GPU models.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

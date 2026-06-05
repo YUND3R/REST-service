@@ -1,5 +1,3 @@
-# Edge cluster: route redis/postgres Service names to ML NodePorts via private node IP.
-# ML_NODE_HOST is injected from ConfigMap ml-cross-cluster-config (files/ml-node-host.env).
 apiVersion: v1
 kind: Service
 metadata:

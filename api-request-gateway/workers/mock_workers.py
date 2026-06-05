@@ -1,4 +1,3 @@
-# Mock workers for integration testing without GPU inference.
 from __future__ import annotations
 
 import asyncio
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 STUB_MODEL_MESSAGE = os.environ.get(
     "STUB_MODEL_MESSAGE",
-    "Модель успешно бы отработала текст",
+    "Inference completed successfully.",
 )
 
 _PROCESSING_DELAY_SEC = float(os.environ.get("MOCK_PROCESSING_DELAY_SEC", "1.5"))
@@ -85,7 +84,7 @@ def mock_analysis(code: str, task_description: str = "") -> dict[str, Any]:
         weak_spots.append(
             {
                 "line": ln,
-                "issue": "Функция пока не реализована — заглушка pass.",
+                "issue": "Function body is empty (pass).",
                 "hint": "Добавьте тело функции согласно условию задачи.",
             }
         )

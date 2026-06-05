@@ -3,7 +3,6 @@ kind: Ingress
 metadata:
   name: edu-ml-api
   annotations:
-    # HTTP without TLS when serving API by Ingress IP only.
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
     nginx.ingress.kubernetes.io/hsts: "false"

@@ -15,8 +15,8 @@ configMapGenerator:
     files:
       - default.conf=files/edge-balancer.conf
   - name: ml-cross-cluster-config
-    envs:
-      - files/ml-node-host.env
+    literals:
+      - ML_NODE_HOST=0.0.0.0
 generatorOptions:
   disableNameSuffixHash: true
 replacements:

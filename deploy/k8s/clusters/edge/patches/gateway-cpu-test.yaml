@@ -18,7 +18,7 @@ spec:
             - name: WEBHOOK_ALLOWED_HOSTS
               value: ""
             - name: ENVIRONMENT
-              value: cpu-test
+              value: development
             - name: DOCS_ENABLED
               value: "true"
           readinessProbe:

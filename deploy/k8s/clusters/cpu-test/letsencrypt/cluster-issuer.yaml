@@ -1,6 +1,4 @@
-# Optional TLS via cert-manager and a public DNS A record for the Ingress IP.
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
+apiVersion: cert-manager.io/v1kind: ClusterIssuer
 metadata:
   name: letsencrypt-prod
 spec:

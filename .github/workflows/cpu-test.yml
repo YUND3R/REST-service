@@ -1,4 +1,4 @@
-name: CPU-test CI/CD
+name: Build and test (CPU-test)
 
 on:
   push:
