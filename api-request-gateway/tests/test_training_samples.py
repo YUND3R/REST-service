@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any, Literal
 
+import pytest
 from pydantic import BaseModel, ConfigDict, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -12,9 +13,14 @@ sys.path.append(str(REPO_ROOT / "libs" / "edu_ml_common"))
 
 from edu_ml.schemas import MlBugfixTask  # noqa: E402
 
+BROKEN_CODE_SAMPLES = REPO_ROOT / "BROKEN CODE generator.json"
+CODE_ANALYZE_SAMPLES = REPO_ROOT / "CODE ANALYZE.json"
 
-def _load_sample(name: str) -> list[dict[str, Any]]:
-    raw = json.loads((REPO_ROOT / name).read_text(encoding="utf-8-sig"))
+
+def _load_sample(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        pytest.skip(f"training sample file not found: {path.name}")
+    raw = json.loads(path.read_text(encoding="utf-8-sig"))
     assert isinstance(raw, list)
     assert raw
     return raw
@@ -98,7 +104,7 @@ class AnalyzeTrainingRecord(BaseModel):
 
 
 def test_broken_code_generator_training_samples_validate() -> None:
-    for item in _load_sample("BROKEN CODE generator.json"):
+    for item in _load_sample(BROKEN_CODE_SAMPLES):
         task = MlBugfixTask.model_validate(item)
         assert task.title
         assert task.difficulty in {"easy", "medium", "hard"}
@@ -110,7 +116,7 @@ def test_broken_code_generator_training_samples_validate() -> None:
 
 
 def test_code_analyze_training_samples_validate() -> None:
-    for item in _load_sample("CODE ANALYZE.json"):
+    for item in _load_sample(CODE_ANALYZE_SAMPLES):
         record = AnalyzeTrainingRecord.model_validate(item)
         task_tags = {tag.name for tag in record.task.tags}
         assert task_tags
