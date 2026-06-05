@@ -1,0 +1,6 @@
+# Non-GPU deployment: API stack with mock inference workers.
+# GPU production uses clusters/edge + clusters/ml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../edge-with-data

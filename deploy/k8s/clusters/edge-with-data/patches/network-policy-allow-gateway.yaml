@@ -13,6 +13,7 @@ spec:
                   - worker-analyze
                   - worker-generate
                   - worker-pipeline
+                  - worker-mock
                   - gateway
                   - webhook-dispatcher
         - ipBlock:
@@ -40,6 +41,7 @@ spec:
                   - worker-analyze
                   - worker-generate
                   - worker-pipeline
+                  - worker-mock
                   - gateway
                   - webhook-dispatcher
         - ipBlock:

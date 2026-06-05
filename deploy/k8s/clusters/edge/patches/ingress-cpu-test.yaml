@@ -3,25 +3,14 @@ kind: Ingress
 metadata:
   name: edu-ml-api
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # HTTP without TLS when serving API by Ingress IP only.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/hsts: "false"
+    nginx.ingress.kubernetes.io/hsts-max-age: "0"
 spec:
-  tls:
-    - hosts:
-        - cpu-test2clusteres.ru
-      secretName: edu-ml-tls
-    - secretName: edu-ml-tls
+  tls: []
   rules:
-    - host: cpu-test2clusteres.ru
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: edge-balancer
-                port:
-                  number: 80
     - http:
         paths:
           - path: /

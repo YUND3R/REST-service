@@ -1,0 +1,28 @@
+# ML data tier only: Redis + Postgres, no GPU model workers.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: edu-ml
+resources:
+  - ../../manifests/namespace.yaml
+  - ../../manifests/redis.yaml
+  - ../../manifests/postgres.yaml
+  - ../../manifests/network-policy-data-tier.yaml
+patches:
+  - path: ../ml/namespace-labels.yaml
+  - path: ../ml/patches/remove-postgres-pvc.yaml
+  - path: ../ml/patches/postgres-emptydir-cpu-test.yaml
+  - path: ../ml/patches/redis-nodeport.yaml
+  - path: ../ml/patches/postgres-nodeport.yaml
+configMapGenerator:
+  - name: postgres-schema
+    files:
+      - 001_schema.sql=../../../../api-request-gateway/db/migrations/001_schema.sql
+  - name: postgres-hba
+    files:
+      - pg_hba.conf=../ml/files/pg_hba.conf
+generatorOptions:
+  disableNameSuffixHash: true
+images:
+  - name: api-request-gateway
+    newName: ghcr.io/yund3r/rest-service
+    newTag: latest

@@ -1,0 +1,13 @@
+# ML cluster overlay: Redis, Postgres, and mock inference worker.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: edu-ml
+resources:
+  - ../ml-data-only
+  - ../edge-with-data/worker-mock.yaml
+patches:
+  - path: patches/worker-mock-ml.yaml
+images:
+  - name: api-request-gateway
+    newName: ghcr.io/yund3r/rest-service
+    newTag: latest

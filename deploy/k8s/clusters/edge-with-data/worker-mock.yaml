@@ -1,0 +1,94 @@
+# Mock inference worker for environments without GPU models.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-mock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-mock
+  template:
+    metadata:
+      labels:
+        app: worker-mock
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: api-request-gateway:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -m
+            - workers.mock_workers
+          env:
+            - name: ENVIRONMENT
+              value: cpu-test
+            - name: LOG_LEVEL
+              value: INFO
+            - name: STUB_MODEL_MESSAGE
+              value: "Модель успешно бы отработал текст"
+            - name: REDIS_URL
+              value: "rediss://redis:6379/0?ssl_cert_reqs=required&ssl_ca_certs=/etc/edu-ml/redis-tls/ca.crt&ssl_certfile=/etc/edu-ml/redis-client-tls/tls.crt&ssl_keyfile=/etc/edu-ml/redis-client-tls/tls.key"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-secrets
+                  key: database-url
+            - name: POSTGRES_SSL_CA_FILE
+              value: /etc/edu-ml/postgres-client-tls/ca.crt
+            - name: POSTGRES_SSL_CERT_FILE
+              value: /etc/edu-ml/postgres-client-tls/tls.crt
+            - name: POSTGRES_SSL_KEY_FILE
+              value: /etc/edu-ml/postgres-client-tls/tls.key
+            - name: STREAM_GROUP_ANALYZE
+              value: analyze_workers
+            - name: STREAM_GROUP_GENERATE
+              value: generate_workers
+            - name: STREAM_GROUP_PIPELINE
+              value: pipeline_workers
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 10001
+          volumeMounts:
+            - name: redis-tls
+              mountPath: /etc/edu-ml/redis-tls
+              readOnly: true
+            - name: redis-client-tls
+              mountPath: /etc/edu-ml/redis-client-tls
+              readOnly: true
+            - name: postgres-client-tls
+              mountPath: /etc/edu-ml/postgres-client-tls
+              readOnly: true
+            - name: mock-script
+              mountPath: /app/workers/mock_workers.py
+              subPath: mock_workers.py
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+        - name: redis-client-tls
+          secret:
+            secretName: redis-client-tls
+        - name: postgres-client-tls
+          secret:
+            secretName: postgres-client-tls
+        - name: mock-script
+          configMap:
+            name: worker-mock-script
+            defaultMode: 0444
