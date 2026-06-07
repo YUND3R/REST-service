@@ -4,6 +4,12 @@ namespace: edu-ml
 resources:
   - ../ml-data-only
   - ../edge-with-data/worker-mock.yaml
+configMapGenerator:
+  - name: worker-mock-script
+    files:
+      - mock_workers.py=../../../../api-request-gateway/workers/mock_workers.py
+generatorOptions:
+  disableNameSuffixHash: true
 patches:
   - path: patches/worker-mock-ml.yaml
 images:

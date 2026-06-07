@@ -7,9 +7,6 @@ spec:
     spec:
       containers:
         - name: worker
-          volumeMounts:
-            - name: mock-script
-              $patch: delete
           env:
             - name: REDIS_URL
               value: "rediss://redis:6379/0?ssl_cert_reqs=required&ssl_check_hostname=false&ssl_ca_certs=/etc/edu-ml/redis-tls/ca.crt&ssl_certfile=/etc/edu-ml/redis-client-tls/tls.crt&ssl_keyfile=/etc/edu-ml/redis-client-tls/tls.key"
