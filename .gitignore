@@ -7,12 +7,15 @@ __pycache__/
 **/.env
 **/.env.*
 **/*.env
-.env.example
-**/.env.example
-**/*.example
 
 *.md
-**/*.md
+!README.md
+!deploy/README.md
+!mock-worker/README.md
+!api-request-gateway/README.md
+!api-request-gateway/SECURITY.md
+!api-request-gateway/CONTRIBUTING.md
+!legacy/**/README.md
 
 .pytest_cache/
 .mypy_cache/
@@ -29,10 +32,11 @@ certs/
 celerybeat-schedule*
 Desktop/Code_analyzer1.0/
 
-models/code-analyze/**
-models/task-generate/**
-!models/code-analyze/.gitkeep
-!models/task-generate/.gitkeep
+mock-worker/code-analyze/**
+mock-worker/task-generate/**
+!mock-worker/README.md
+!mock-worker/code-analyze/.gitkeep
+!mock-worker/task-generate/.gitkeep
 
 *.safetensors
 *.gguf

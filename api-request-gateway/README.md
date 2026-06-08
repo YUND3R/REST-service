@@ -13,8 +13,15 @@ Production-ready REST API для асинхронного анализа сту�
 
 ## Быстрый старт (Docker Compose)
 
+Создайте файл `.env` рядом с `docker-compose.yml` (не коммитится). Минимум:
+
 ```bash
-cp .env.example .env
+POSTGRES_PASSWORD=change-me
+WEBHOOK_SIGNING_SECRET=change-me
+CORS_ORIGINS=https://app.example.com
+```
+
+```bash
 docker compose build
 docker compose up -d
 ```
@@ -48,7 +55,7 @@ Content-Type: application/json
 
 ## Переменные окружения
 
-См. **[.env.example](.env.example)**. Кратко:
+Кратко (полный список — `gateway/config.py` и `docker-compose.yml`):
 
 | Переменная | Назначение |
 |------------|------------|
