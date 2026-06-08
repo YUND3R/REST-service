@@ -5,9 +5,9 @@ import uuid
 import pytest
 from starlette.testclient import TestClient
 
+from conftest import TEST_API_KEY
 from db.models import Platform
 from gateway.services.queue import QueueService
-from tests.conftest import TEST_API_KEY
 
 
 @pytest.mark.asyncio
