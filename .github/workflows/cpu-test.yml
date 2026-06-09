@@ -185,6 +185,26 @@ jobs:
             echo "path=deploy/k8s/clusters/ml-cpu-internal" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Apply app secrets (ML)
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
+        run: |
+          if [ ! -s ~/.kube/config ]; then exit 0; fi
+          if [ -z "${POSTGRES_PASSWORD:-}" ] || [ -z "${WEBHOOK_SIGNING_SECRET:-}" ]; then
+            echo "::warning::POSTGRES_PASSWORD or WEBHOOK_SIGNING_SECRET not set — skip app secrets"
+            exit 0
+          fi
+          db_url="postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD}@postgres:5432/ai_mentor"
+          kubectl create namespace edu-ml --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n edu-ml create secret generic postgres-secrets \
+            --from-literal=password="${POSTGRES_PASSWORD}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n edu-ml create secret generic gateway-secrets \
+            --from-literal=database-url="${db_url}" \
+            --from-literal=webhook-signing-secret="${WEBHOOK_SIGNING_SECRET}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply ML manifests
         env:
           IMAGE: ${{ needs.docker.outputs.image }}:${{ needs.docker.outputs.tag }}
@@ -209,8 +229,11 @@ jobs:
   deploy-edge:
     name: Deploy Edge cluster
     runs-on: ubuntu-latest
-    needs: docker
+    needs: [docker, deploy-ml]
     if: |
+      always() &&
+      needs.docker.result == 'success' &&
+      (needs.deploy-ml.result == 'success' || needs.deploy-ml.result == 'skipped') &&
       github.event_name == 'workflow_dispatch' &&
       inputs.deploy
     environment:
@@ -244,18 +267,43 @@ jobs:
             echo "path=deploy/k8s/clusters/cpu-test" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Apply app secrets (Edge)
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
+        run: |
+          if [ ! -s ~/.kube/config ]; then exit 0; fi
+          if [ -z "${POSTGRES_PASSWORD:-}" ] || [ -z "${WEBHOOK_SIGNING_SECRET:-}" ]; then
+            echo "::warning::POSTGRES_PASSWORD or WEBHOOK_SIGNING_SECRET not set — skip app secrets"
+            exit 0
+          fi
+          db_url="postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD}@postgres:5432/ai_mentor"
+          kubectl create namespace edu-ml --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n edu-ml create secret generic postgres-secrets \
+            --from-literal=password="${POSTGRES_PASSWORD}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n edu-ml create secret generic gateway-secrets \
+            --from-literal=database-url="${db_url}" \
+            --from-literal=webhook-signing-secret="${WEBHOOK_SIGNING_SECRET}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Edge manifests
         env:
           IMAGE: ${{ needs.docker.outputs.image }}:${{ needs.docker.outputs.tag }}
           EDGE_OVERLAY: ${{ steps.edge.outputs.path }}
+          ML_NODE_HOST: ${{ secrets.ML_NODE_HOST }}
         run: |
           if [ ! -s ~/.kube/config ]; then exit 0; fi
           set -euo pipefail
-          kubectl kustomize --load-restrictor="${KUSTOMIZE_LOAD}" "$EDGE_OVERLAY" \
+          rendered="$(kubectl kustomize --load-restrictor="${KUSTOMIZE_LOAD}" "$EDGE_OVERLAY")"
+          rendered="$(printf '%s\n' "$rendered" \
             | sed "s|ghcr.io/yund3r/rest-service:latest|${IMAGE}|g" \
-            | sed "s|ghcr.io/yund3r/rest-service:cpu-test|${IMAGE}|g" \
-            | sed "s|image: api-request-gateway:latest|image: ${IMAGE}|g" \
-            | kubectl apply -f -
+            | sed "s|image: api-request-gateway:latest|image: ${IMAGE}|g")"
+          if [ -n "${ML_NODE_HOST:-}" ] && [ "$EDGE_OVERLAY" = "deploy/k8s/clusters/edge" ]; then
+            rendered="$(printf '%s\n' "$rendered" | sed "s|ip: 0.0.0.0|ip: ${ML_NODE_HOST}|g")"
+            rendered="$(printf '%s\n' "$rendered" | sed "s|ip: 127.0.0.1|ip: ${ML_NODE_HOST}|g")"
+          fi
+          printf '%s\n' "$rendered" | kubectl apply -f -
 
       - name: Wait for Edge rollouts
         continue-on-error: true
