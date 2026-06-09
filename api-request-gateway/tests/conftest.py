@@ -118,6 +118,8 @@ def gateway_app(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr("gateway.main.lifespan", test_lifespan)
     monkeypatch.setattr("gateway.routers.analyze.get_or_create_student", fake_student)
+    monkeypatch.setattr("gateway.routers.generate.get_or_create_student", fake_student)
+    monkeypatch.setattr("gateway.routers.pipeline.get_or_create_student", fake_student)
 
     app = create_app()
     with TestClient(app) as client:
