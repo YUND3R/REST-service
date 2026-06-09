@@ -1,4 +1,4 @@
-name: Build and test (CPU-test)
+name: CPU-test CI/CD
 
 on:
   push:
@@ -20,14 +20,14 @@ on:
       deploy:
         description: "Deploy to Kubernetes after build"
         type: boolean
-        default: false
+        default: true
       edge_overlay:
         description: "Edge overlay (cpu-test = all on Edge, edge = cross-cluster API)"
         type: choice
         options:
           - cpu-test
           - edge
-        default: cpu-test
+        default: edge
       ml_overlay:
         description: "ML overlay (skip deploy-ml when cpu-test edge overlay)"
         type: choice
@@ -35,7 +35,7 @@ on:
           - ml-cpu-internal
           - ml-data-only
           - skip
-        default: skip
+        default: ml-cpu-internal
 
 concurrency:
   group: cpu-test-${{ github.workflow }}-${{ github.ref }}
@@ -50,6 +50,47 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  deploy-config:
+    name: Resolve deploy plan
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.cfg.outputs.deploy }}
+      edge_overlay: ${{ steps.cfg.outputs.edge_overlay }}
+      ml_overlay: ${{ steps.cfg.outputs.ml_overlay }}
+    steps:
+      - id: cfg
+        env:
+          EVENT: ${{ github.event_name }}
+          DISPATCH_DEPLOY: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy }}
+          INPUT_EDGE: ${{ inputs.edge_overlay }}
+          INPUT_ML: ${{ inputs.ml_overlay }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            push)
+              echo "deploy=true" >> "$GITHUB_OUTPUT"
+              echo "edge_overlay=edge" >> "$GITHUB_OUTPUT"
+              echo "ml_overlay=ml-cpu-internal" >> "$GITHUB_OUTPUT"
+              ;;
+            workflow_dispatch)
+              if [ "$DISPATCH_DEPLOY" = "true" ]; then
+                echo "deploy=true" >> "$GITHUB_OUTPUT"
+                echo "edge_overlay=${INPUT_EDGE:-edge}" >> "$GITHUB_OUTPUT"
+                echo "ml_overlay=${INPUT_ML:-ml-cpu-internal}" >> "$GITHUB_OUTPUT"
+              else
+                echo "deploy=false" >> "$GITHUB_OUTPUT"
+                echo "edge_overlay=${INPUT_EDGE:-edge}" >> "$GITHUB_OUTPUT"
+                echo "ml_overlay=${INPUT_ML:-ml-cpu-internal}" >> "$GITHUB_OUTPUT"
+              fi
+              ;;
+            *)
+              echo "deploy=false" >> "$GITHUB_OUTPUT"
+              echo "edge_overlay=edge" >> "$GITHUB_OUTPUT"
+              echo "ml_overlay=ml-cpu-internal" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+          echo "Deploy plan: deploy=$(grep ^deploy= "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)"
+
   quality:
     name: Lint & tests
     runs-on: ubuntu-latest
@@ -149,11 +190,11 @@ jobs:
   deploy-ml:
     name: Deploy ML cluster
     runs-on: ubuntu-latest
-    needs: docker
+    needs: [docker, deploy-config]
     if: |
-      github.event_name == 'workflow_dispatch' &&
-      inputs.deploy &&
-      inputs.ml_overlay != 'skip'
+      github.event_name != 'pull_request' &&
+      needs.deploy-config.outputs.deploy == 'true' &&
+      needs.deploy-config.outputs.ml_overlay != 'skip'
     environment:
       name: k8s-ml-cpu-test
     steps:
@@ -163,38 +204,49 @@ jobs:
         with:
           version: "v1.31.2"
 
+      - name: Validate deploy secrets (ML)
+        env:
+          KUBE: ${{ secrets.KUBECONFIG_ML }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${KUBE:-}" ]; then
+            echo "::error::Secret KUBECONFIG_ML is not set."
+            missing=1
+          fi
+          if [ -z "${POSTGRES_PASSWORD:-}" ]; then
+            echo "::error::Secret POSTGRES_PASSWORD is not set."
+            missing=1
+          fi
+          if [ -z "${WEBHOOK_SIGNING_SECRET:-}" ]; then
+            echo "::error::Secret WEBHOOK_SIGNING_SECRET is not set."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Kubeconfig (ML)
         env:
           KUBE: ${{ secrets.KUBECONFIG_ML }}
         run: |
           mkdir -p ~/.kube
-          if [ -z "$KUBE" ]; then
-            echo "::warning::KUBECONFIG_ML not set — skip ML deploy"
-            exit 0
-          fi
           printf '%s\n' "$KUBE" > ~/.kube/config
 
       - name: Resolve ML overlay
         id: ml
         env:
-          INPUT: ${{ github.event.inputs.ml_overlay }}
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "$INPUT" ] && [ "$INPUT" != "skip" ]; then
-            echo "path=deploy/k8s/clusters/${INPUT}" >> "$GITHUB_OUTPUT"
-          else
-            echo "path=deploy/k8s/clusters/ml-cpu-internal" >> "$GITHUB_OUTPUT"
-          fi
+          ML_OVERLAY: ${{ needs.deploy-config.outputs.ml_overlay }}
+        run: echo "path=deploy/k8s/clusters/${ML_OVERLAY}" >> "$GITHUB_OUTPUT"
 
       - name: Apply app secrets (ML)
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
         run: |
-          if [ ! -s ~/.kube/config ]; then exit 0; fi
-          if [ -z "${POSTGRES_PASSWORD:-}" ] || [ -z "${WEBHOOK_SIGNING_SECRET:-}" ]; then
-            echo "::warning::POSTGRES_PASSWORD or WEBHOOK_SIGNING_SECRET not set — skip app secrets"
-            exit 0
-          fi
+          set -euo pipefail
           db_url="postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD}@postgres:5432/ai_mentor"
           kubectl create namespace edu-ml --dry-run=client -o yaml | kubectl apply -f -
           kubectl -n edu-ml create secret generic postgres-secrets \
@@ -210,32 +262,29 @@ jobs:
           IMAGE: ${{ needs.docker.outputs.image }}:${{ needs.docker.outputs.tag }}
           ML_OVERLAY: ${{ steps.ml.outputs.path }}
         run: |
-          if [ ! -s ~/.kube/config ]; then exit 0; fi
           set -euo pipefail
           kubectl kustomize --load-restrictor="${KUSTOMIZE_LOAD}" "$ML_OVERLAY" \
             | sed "s|ghcr.io/yund3r/rest-service:latest|${IMAGE}|g" \
-            | sed "s|ghcr.io/yund3r/rest-service:cpu-test|${IMAGE}|g" \
             | sed "s|image: api-request-gateway:latest|image: ${IMAGE}|g" \
             | kubectl apply -f -
 
       - name: Wait for ML rollouts
-        continue-on-error: true
         run: |
-          if [ ! -s ~/.kube/config ]; then exit 0; fi
-          kubectl -n edu-ml rollout status deployment/redis --timeout=180s || true
-          kubectl -n edu-ml rollout status deployment/postgres --timeout=180s || true
-          kubectl -n edu-ml rollout status deployment/worker-mock --timeout=180s || true
+          set -euo pipefail
+          kubectl -n edu-ml rollout status deployment/redis --timeout=180s
+          kubectl -n edu-ml rollout status deployment/postgres --timeout=180s
+          kubectl -n edu-ml rollout status deployment/worker-mock --timeout=1200s
 
   deploy-edge:
     name: Deploy Edge cluster
     runs-on: ubuntu-latest
-    needs: [docker, deploy-ml]
+    needs: [docker, deploy-config, deploy-ml]
     if: |
       always() &&
+      github.event_name != 'pull_request' &&
+      needs.deploy-config.outputs.deploy == 'true' &&
       needs.docker.result == 'success' &&
-      (needs.deploy-ml.result == 'success' || needs.deploy-ml.result == 'skipped') &&
-      github.event_name == 'workflow_dispatch' &&
-      inputs.deploy
+      (needs.deploy-ml.result == 'success' || needs.deploy-ml.result == 'skipped')
     environment:
       name: k8s-edge-cpu-test
     steps:
@@ -245,38 +294,55 @@ jobs:
         with:
           version: "v1.31.2"
 
+      - name: Validate deploy secrets (Edge)
+        env:
+          KUBE: ${{ secrets.KUBECONFIG_EDGE }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
+          ML_NODE_HOST: ${{ secrets.ML_NODE_HOST }}
+          EDGE_OVERLAY: deploy/k8s/clusters/${{ needs.deploy-config.outputs.edge_overlay }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${KUBE:-}" ]; then
+            echo "::error::Secret KUBECONFIG_EDGE is not set."
+            missing=1
+          fi
+          if [ -z "${POSTGRES_PASSWORD:-}" ]; then
+            echo "::error::Secret POSTGRES_PASSWORD is not set."
+            missing=1
+          fi
+          if [ -z "${WEBHOOK_SIGNING_SECRET:-}" ]; then
+            echo "::error::Secret WEBHOOK_SIGNING_SECRET is not set."
+            missing=1
+          fi
+          if [ "$EDGE_OVERLAY" = "deploy/k8s/clusters/edge" ] && [ -z "${ML_NODE_HOST:-}" ]; then
+            echo "::error::Secret ML_NODE_HOST is required for edge cross-cluster overlay."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Kubeconfig (Edge)
         env:
           KUBE: ${{ secrets.KUBECONFIG_EDGE }}
         run: |
           mkdir -p ~/.kube
-          if [ -z "$KUBE" ]; then
-            echo "::warning::KUBECONFIG_EDGE not set — skip Edge deploy"
-            exit 0
-          fi
           printf '%s\n' "$KUBE" > ~/.kube/config
 
       - name: Resolve Edge overlay
         id: edge
         env:
-          INPUT: ${{ github.event.inputs.edge_overlay }}
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "$INPUT" ]; then
-            echo "path=deploy/k8s/clusters/${INPUT}" >> "$GITHUB_OUTPUT"
-          else
-            echo "path=deploy/k8s/clusters/cpu-test" >> "$GITHUB_OUTPUT"
-          fi
+          EDGE_OVERLAY: ${{ needs.deploy-config.outputs.edge_overlay }}
+        run: echo "path=deploy/k8s/clusters/${EDGE_OVERLAY}" >> "$GITHUB_OUTPUT"
 
       - name: Apply app secrets (Edge)
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
         run: |
-          if [ ! -s ~/.kube/config ]; then exit 0; fi
-          if [ -z "${POSTGRES_PASSWORD:-}" ] || [ -z "${WEBHOOK_SIGNING_SECRET:-}" ]; then
-            echo "::warning::POSTGRES_PASSWORD or WEBHOOK_SIGNING_SECRET not set — skip app secrets"
-            exit 0
-          fi
+          set -euo pipefail
           db_url="postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD}@postgres:5432/ai_mentor"
           kubectl create namespace edu-ml --dry-run=client -o yaml | kubectl apply -f -
           kubectl -n edu-ml create secret generic postgres-secrets \
@@ -293,22 +359,73 @@ jobs:
           EDGE_OVERLAY: ${{ steps.edge.outputs.path }}
           ML_NODE_HOST: ${{ secrets.ML_NODE_HOST }}
         run: |
-          if [ ! -s ~/.kube/config ]; then exit 0; fi
           set -euo pipefail
           rendered="$(kubectl kustomize --load-restrictor="${KUSTOMIZE_LOAD}" "$EDGE_OVERLAY")"
           rendered="$(printf '%s\n' "$rendered" \
             | sed "s|ghcr.io/yund3r/rest-service:latest|${IMAGE}|g" \
             | sed "s|image: api-request-gateway:latest|image: ${IMAGE}|g")"
-          if [ -n "${ML_NODE_HOST:-}" ] && [ "$EDGE_OVERLAY" = "deploy/k8s/clusters/edge" ]; then
+          if [ "$EDGE_OVERLAY" = "deploy/k8s/clusters/edge" ]; then
             rendered="$(printf '%s\n' "$rendered" | sed "s|ip: 0.0.0.0|ip: ${ML_NODE_HOST}|g")"
             rendered="$(printf '%s\n' "$rendered" | sed "s|ip: 127.0.0.1|ip: ${ML_NODE_HOST}|g")"
           fi
           printf '%s\n' "$rendered" | kubectl apply -f -
 
       - name: Wait for Edge rollouts
-        continue-on-error: true
         run: |
-          if [ ! -s ~/.kube/config ]; then exit 0; fi
-          kubectl -n edu-ml rollout status deployment/gateway --timeout=300s || true
-          kubectl -n edu-ml rollout status deployment/edge-balancer --timeout=120s || true
-          kubectl -n edu-ml rollout status deployment/worker-mock --timeout=120s || true
+          set -euo pipefail
+          kubectl -n edu-ml rollout status deployment/gateway --timeout=300s
+          kubectl -n edu-ml rollout status deployment/edge-balancer --timeout=120s
+          kubectl -n edu-ml rollout status deployment/webhook-dispatcher --timeout=180s
+
+  verify-deploy:
+    name: Verify deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-config, deploy-edge]
+    if: |
+      always() &&
+      needs.deploy-config.outputs.deploy == 'true' &&
+      needs.deploy-edge.result == 'success'
+    steps:
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.31.2"
+
+      - name: Kubeconfig (Edge)
+        env:
+          KUBE: ${{ secrets.KUBECONFIG_EDGE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KUBE:-}" ]; then
+            echo "::error::Secret KUBECONFIG_EDGE is not set."
+            exit 1
+          fi
+          mkdir -p ~/.kube
+          printf '%s\n' "$KUBE" > ~/.kube/config
+
+      - name: Check Edge workloads
+        run: |
+          set -euo pipefail
+          kubectl -n edu-ml wait --for=condition=available deployment/gateway --timeout=120s
+          kubectl -n edu-ml wait --for=condition=available deployment/edge-balancer --timeout=120s
+          kubectl -n edu-ml wait --for=condition=available deployment/webhook-dispatcher --timeout=120s
+          kubectl -n edu-ml get deploy,pods,endpoints
+
+      - name: Health check via port-forward
+        run: |
+          set -euo pipefail
+          kubectl -n edu-ml port-forward svc/gateway 18080:80 >/tmp/pf.log 2>&1 &
+          pf_pid=$!
+          trap 'kill "$pf_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:18080/health/ready >/tmp/health.json; then
+              cat /tmp/health.json
+              grep -q '"status":"ready"' /tmp/health.json
+              grep -q '"redis":true' /tmp/health.json
+              grep -q '"database":true' /tmp/health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Gateway /health/ready did not become ready in time."
+          cat /tmp/pf.log || true
+          exit 1
