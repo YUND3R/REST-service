@@ -1,0 +1,78 @@
+---
+description: CPU-test Selectel K8s deploy — архитектура, GitHub CI/CD, secrets, восстановление
+alwaysApply: true
+---
+
+# CPU-test: деплой и эксплуатация
+
+## Архитектура (два кластера Selectel)
+
+- **Edge** (`local/abigail.yaml`): gateway, edge-balancer, webhook-dispatcher, ingress-nginx → публичный API
+- **ML** (`local/llm.yaml`, overlay `ml-cpu-internal`): redis, postgres, worker-mock — только внутренняя сеть `10.222.x.x`
+- Cross-cluster: Edge Service + Endpoints → `ML_NODE_HOST` + NodePort (redis `30637`, postgres `30432`)
+- Порядок деплоя: **ML → Edge** (Edge без ML не работает)
+
+## GitHub CI/CD
+
+- Workflow: `.github/workflows/cpu-test.yml` (name: **CPU-test CI/CD**)
+- Ветка: **`CPU-test`**
+- **Push** в `CPU-test` → lint/test → docker push GHCR → deploy ML → deploy Edge → verify
+- PR → только lint/test (без деплоя)
+- `workflow_dispatch`: `deploy=true`, `edge_overlay=edge`, `ml_overlay=ml-cpu-internal`
+- Образ: `ghcr.io/yund3r/rest-service:cpu-test-<sha7>`
+- Deploy jobs **fail**, если secrets пустые (не skip)
+
+## GitHub Secrets (обязательные)
+
+| Secret | Назначение |
+|--------|------------|
+| `KUBECONFIG_ML` | полный kubeconfig ML |
+| `KUBECONFIG_EDGE` | полный kubeconfig Edge |
+| `POSTGRES_PASSWORD` | postgres + gateway-secrets |
+| `WEBHOOK_SIGNING_SECRET` | gateway-secrets |
+| `ML_NODE_HOST` | INTERNAL-IP ноды ML (напр. `10.222.3.206`) |
+
+Environments: `k8s-ml-cpu-test`, `k8s-edge-cpu-test`
+
+## CI НЕ делает (вручную один раз)
+
+1. **ingress-nginx** на Edge (если нет от Selectel)
+2. **TLS secrets** в `edu-ml`: `redis-tls`, `postgres-tls`, `redis-client-tls`, `postgres-client-tls` (ML); на Edge без `postgres-tls`
+3. Сертификаты в `local/certs/` (gitignored)
+
+## Локальное (gitignored)
+
+- `local/llm.yaml`, `local/abigail.yaml` — kubeconfig
+- `local/deploy.env` — POSTGRES_PASSWORD, WEBHOOK_SIGNING_SECRET
+- `local/build/` — временные yaml/json для kubectl/curl
+
+## API
+
+- Swagger: `http://<ingress-external-ip>/docs` (не корень `/`)
+- Health: `/health/ready`, `/health/live`
+- API key: **`dev-api-key`** → header `X-API-Key` (seed в `db/migrations/001_schema.sql`)
+- `pending` в status = worker не обработал; нужен `worker-mock Running`
+
+## Известные проблемы
+
+- Docker-образ ~5–6 GB (torch/transformers) — worker pull 10–20 мин на новой ноде/теге
+- На ML deploy **не** использовать второй sed `cpu-test` (ломает тег `cpu-test-xxx-xxx`)
+- Worker-mock не нужен torch — slim-образ на будущее
+
+## Восстановление после удаления кластеров
+
+1. Создать 2 кластера в Selectel, сохранить kubeconfig
+2. Обновить secrets: `KUBECONFIG_ML`, `KUBECONFIG_EDGE`, `ML_NODE_HOST` (`kubectl get nodes -o wide` на ML)
+3. Edge: ingress-nginx; оба кластера: TLS secrets
+4. Деплой: `git push origin CPU-test` или `gh workflow run "CPU-test CI/CD" --ref CPU-test -f deploy=true -f edge_overlay=edge -f ml_overlay=ml-cpu-internal`
+5. Проверка: CI 7 jobs green; `/health/ready`; analyze → status `done`
+
+## Полезные команды
+
+```powershell
+$env:KUBECONFIG="local/llm.yaml"    # или local/abigail.yaml
+kubectl -n edu-ml get pods
+gh run watch
+gh secret list
+curl.exe http://<ip>/health/ready
+```

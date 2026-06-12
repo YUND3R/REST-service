@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 import pytest
 
 from db.models import Platform, Student, User
-from gateway.services.auth import create_access_token, decode_access_token
+from gateway.services.auth import decode_access_token
 from gateway.services.users import get_user_for_platform, issue_token_for_user, register_user
 
 

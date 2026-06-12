@@ -9,13 +9,6 @@ __pycache__/
 **/*.env
 
 *.md
-!README.md
-!deploy/README.md
-!mock-worker/README.md
-!api-request-gateway/README.md
-!api-request-gateway/SECURITY.md
-!api-request-gateway/CONTRIBUTING.md
-!legacy/**/README.md
 
 .pytest_cache/
 .mypy_cache/
@@ -34,7 +27,6 @@ Desktop/Code_analyzer1.0/
 
 mock-worker/code-analyze/**
 mock-worker/task-generate/**
-!mock-worker/README.md
 !mock-worker/code-analyze/.gitkeep
 !mock-worker/task-generate/.gitkeep
 

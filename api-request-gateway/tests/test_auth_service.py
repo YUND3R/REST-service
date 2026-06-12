@@ -9,7 +9,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
-from conftest import FakeRedis, TEST_API_KEY
+from conftest import TEST_API_KEY, FakeRedis
 from db.models import Platform
 from gateway.config import get_settings
 from gateway.services.auth import (
