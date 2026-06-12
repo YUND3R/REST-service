@@ -8,11 +8,11 @@ from typing import Any
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, Request
 
-from db.models import Analysis, Platform
+from db.models import Analysis
 from db.session import get_session_factory
 from gateway.schemas.request import AnalyzeIn
 from gateway.schemas.response import TaskAccepted
-from gateway.services.auth import check_rate_limit, verify_api_key
+from gateway.services.auth import AuthContext, check_auth_rate_limit, ensure_student_access, verify_auth_context
 from gateway.services.cache import CacheService, analyze_cache_key
 from gateway.services.queue import QueueService
 from gateway.services.students import get_or_create_student
@@ -59,20 +59,21 @@ async def _persist_analysis_row(
 @router.post("/analyze", response_model=TaskAccepted)
 async def analyze(
     body: AnalyzeIn,
-    platform: Platform = Depends(verify_api_key),
+    ctx: AuthContext = Depends(verify_auth_context),
     r: redis.Redis = Depends(get_redis),
     queue: QueueService = Depends(get_queue),
     cache: CacheService = Depends(get_cache),
 ) -> TaskAccepted:
-    await check_rate_limit(r, platform.api_key)
-    student_uuid = await get_or_create_student(platform, body.student_id)
+    await check_auth_rate_limit(r, ctx)
+    ensure_student_access(ctx, body.student_id)
+    student_uuid = await get_or_create_student(ctx.platform, str(body.student_id))
     ckey = analyze_cache_key(body.task_description, body.code)
     cached = await cache.get_json(ckey)
 
     if cached is not None:
         task_id = str(uuid.uuid4())
-        await queue.set_status(task_id, "pending", platform_id=str(platform.id))
-        webhook_body: dict[str, Any] = {"student_id": body.student_id, "analysis": cached}
+        await queue.set_status(task_id, "pending", platform_id=str(ctx.platform.id))
+        webhook_body: dict[str, Any] = {"student_id": str(body.student_id), "analysis": cached}
         await queue.complete_with_result(task_id, webhook_body)
         asyncio.create_task(deliver_webhook(str(body.webhook_url), webhook_body))
         asyncio.create_task(
@@ -81,9 +82,9 @@ async def analyze(
         return TaskAccepted(task_id=task_id)
 
     payload = {
-        "student_external_id": body.student_id,
+        "student_external_id": str(body.student_id),
         "student_uuid": str(student_uuid),
-        "platform_id": str(platform.id),
+        "platform_id": str(ctx.platform.id),
         "task_description": body.task_description,
         "code": body.code,
         "webhook_url": str(body.webhook_url),

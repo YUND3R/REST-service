@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import uuid
 from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 Difficulty = Literal["easy", "medium", "hard"]
 
-MAX_STUDENT_ID_LEN = 255
 MAX_TASK_DESCRIPTION_LEN = 20_000
 MAX_CODE_LEN = 200_000
 MAX_TAG_LEN = 128
@@ -39,7 +39,7 @@ def _validate_webhook_url(url: HttpUrl) -> HttpUrl:
 
 
 class AnalyzeIn(BaseModel):
-    student_id: str = Field(..., min_length=1, max_length=MAX_STUDENT_ID_LEN, description="External student identifier")
+    student_id: uuid.UUID = Field(..., description="Registered user UUID")
     task_description: str = Field(..., min_length=1, max_length=MAX_TASK_DESCRIPTION_LEN)
     code: str = Field(..., min_length=1, max_length=MAX_CODE_LEN)
     webhook_url: HttpUrl
@@ -51,7 +51,7 @@ class AnalyzeIn(BaseModel):
 
 
 class GenerateIn(BaseModel):
-    student_id: str = Field(..., min_length=1, max_length=MAX_STUDENT_ID_LEN)
+    student_id: uuid.UUID = Field(..., description="Registered user UUID")
     tags: list[str] = Field(..., min_length=1, max_length=MAX_TAGS)
     difficulty: Difficulty
     webhook_url: HttpUrl
@@ -73,7 +73,7 @@ class GenerateIn(BaseModel):
 
 
 class PipelineIn(BaseModel):
-    student_id: str = Field(..., min_length=1, max_length=MAX_STUDENT_ID_LEN)
+    student_id: uuid.UUID = Field(..., description="Registered user UUID")
     task_description: str = Field(..., min_length=1, max_length=MAX_TASK_DESCRIPTION_LEN)
     code: str = Field(..., min_length=1, max_length=MAX_CODE_LEN)
     webhook_url: HttpUrl

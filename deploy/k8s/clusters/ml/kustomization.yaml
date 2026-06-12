@@ -20,6 +20,7 @@ configMapGenerator:
   - name: postgres-schema
     files:
       - 001_schema.sql=../../../../api-request-gateway/db/migrations/001_schema.sql
+      - 002_users.sql=../../../../api-request-gateway/db/migrations/002_users.sql
   - name: postgres-hba
     files:
       - pg_hba.conf=files/pg_hba.conf

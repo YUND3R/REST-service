@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
@@ -12,7 +14,7 @@ from gateway.schemas.response import (
     StudentHistoryResponse,
     StudentProfileResponse,
 )
-from gateway.services.auth import check_rate_limit, verify_api_key
+from gateway.services.auth import AuthContext, check_auth_rate_limit, ensure_student_access, verify_auth_context
 from gateway.services.student_profile import get_student_profile
 
 router = APIRouter()
@@ -22,12 +24,13 @@ def get_redis(request: Request) -> redis.Redis:
     return request.app.state.redis
 
 
-async def _resolve_student(platform: Platform, external_student_id: str) -> Student:
+async def _resolve_student(platform: Platform, external_student_id: uuid.UUID) -> Student:
+    student_key = str(external_student_id)
     async with session_scope() as session:
         student = (
             await session.execute(
                 select(Student).where(
-                    Student.external_id == external_student_id,
+                    Student.external_id == student_key,
                     Student.platform_id == platform.id,
                 )
             )
@@ -39,12 +42,13 @@ async def _resolve_student(platform: Platform, external_student_id: str) -> Stud
 
 @router.get("/students/{student_id}/history", response_model=StudentHistoryResponse)
 async def student_history(
-    student_id: str,
-    platform: Platform = Depends(verify_api_key),
+    student_id: uuid.UUID,
+    ctx: AuthContext = Depends(verify_auth_context),
     r: redis.Redis = Depends(get_redis),
 ) -> StudentHistoryResponse:
-    await check_rate_limit(r, platform.api_key)
-    student = await _resolve_student(platform, student_id)
+    await check_auth_rate_limit(r, ctx)
+    ensure_student_access(ctx, student_id)
+    student = await _resolve_student(ctx.platform, student_id)
 
     async with session_scope() as session:
         analyses_rows = (
@@ -88,18 +92,19 @@ async def student_history(
             for row in generated_rows
         ]
 
-    return StudentHistoryResponse(student_id=student_id, analyses=analyses, generated_tasks=generated_tasks)
+    return StudentHistoryResponse(student_id=str(student_id), analyses=analyses, generated_tasks=generated_tasks)
 
 
 @router.get("/students/{student_id}/profile", response_model=StudentProfileResponse)
 async def student_profile(
-    student_id: str,
-    platform: Platform = Depends(verify_api_key),
+    student_id: uuid.UUID,
+    ctx: AuthContext = Depends(verify_auth_context),
     r: redis.Redis = Depends(get_redis),
 ) -> StudentProfileResponse:
-    await check_rate_limit(r, platform.api_key)
-    student = await _resolve_student(platform, student_id)
+    await check_auth_rate_limit(r, ctx)
+    ensure_student_access(ctx, student_id)
+    student = await _resolve_student(ctx.platform, student_id)
     profile = await get_student_profile(r, student_id=str(student.id))
     if profile is None:
         raise HTTPException(status_code=404, detail="Student profile not found")
-    return StudentProfileResponse(student_id=student_id, profile=profile)
+    return StudentProfileResponse(student_id=str(student_id), profile=profile)

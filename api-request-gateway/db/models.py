@@ -33,6 +33,22 @@ class Platform(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     students: Mapped[list[Student]] = relationship(back_populates="platform_row")
+    users: Mapped[list[User]] = relationship(back_populates="platform_row")
+
+
+class User(Base):
+    """Registered end-user (student) identity scoped to a platform."""
+
+    __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("id", "platform_id", name="uq_users_id_platform"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    platform_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("platforms.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    platform_row: Mapped[Platform] = relationship(back_populates="users")
 
 
 class Student(Base):

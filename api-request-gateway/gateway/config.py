@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     stream_pipeline: str = "queue:pipeline"
     stream_webhook: str = "queue:webhook"
 
+    jwt_secret: str = "dev-jwt-secret-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24
+
     @field_validator("docs_enabled", mode="before")
     @classmethod
     def _bool_from_str(cls, v: object) -> object:

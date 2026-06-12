@@ -255,6 +255,7 @@ jobs:
           kubectl -n edu-ml create secret generic gateway-secrets \
             --from-literal=database-url="${db_url}" \
             --from-literal=webhook-signing-secret="${WEBHOOK_SIGNING_SECRET}" \
+            --from-literal=jwt-secret="${WEBHOOK_SIGNING_SECRET}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply ML manifests
@@ -351,6 +352,7 @@ jobs:
           kubectl -n edu-ml create secret generic gateway-secrets \
             --from-literal=database-url="${db_url}" \
             --from-literal=webhook-signing-secret="${WEBHOOK_SIGNING_SECRET}" \
+            --from-literal=jwt-secret="${WEBHOOK_SIGNING_SECRET}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply Edge manifests

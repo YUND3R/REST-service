@@ -56,6 +56,11 @@ spec:
                 secretKeyRef:
                   name: gateway-secrets
                   key: webhook-signing-secret
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-secrets
+                  key: jwt-secret
           ports:
             - name: http
               containerPort: 8000

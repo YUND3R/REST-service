@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from db.session import get_engine, ping_database
 from gateway.config import get_settings
-from gateway.routers import analyze, generate, pipeline, status, students
+from gateway.routers import analyze, auth, generate, pipeline, status, students
 from gateway.services.cache import CacheService
 from gateway.services.queue import QueueService
 
@@ -71,6 +71,7 @@ def create_app() -> FastAPI:
             logger.info("%s %s", request.method, path)
         return await call_next(request)
 
+    app.include_router(auth.router, prefix="/api/v1")
     app.include_router(analyze.router, prefix="/api/v1")
     app.include_router(generate.router, prefix="/api/v1")
     app.include_router(pipeline.router, prefix="/api/v1")
