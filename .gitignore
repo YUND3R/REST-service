@@ -43,6 +43,8 @@ mock-worker/task-generate/**
 
 BROKEN CODE generator.json
 CODE ANALYZE.json
+Broken_Code_Generator_Dataset.json
+Code_Analyze_Dataset.json
 
 wandb/
 runs/
@@ -58,4 +60,3 @@ lightning_logs/
 
 **/SECRETS*
 local/
-.cursor/
