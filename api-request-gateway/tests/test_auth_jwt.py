@@ -87,6 +87,37 @@ def test_jwt_student_id_mismatch_forbidden(
     app.dependency_overrides.pop(verify_auth_context, None)
 
 
+@pytest.mark.asyncio
+async def test_analyze_with_real_jwt_verify_auth(
+    gateway_app: tuple[TestClient, QueueService, object],
+    test_platform: Platform,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end JWT path without overriding verify_auth_context."""
+    client, queue, app = gateway_app
+    user_id = uuid.UUID(STUDENT_ID)
+    token = create_access_token(user_id=user_id, platform_id=test_platform.id)
+
+    async def fake_get_platform(platform_id: uuid.UUID) -> Platform | None:
+        return test_platform if platform_id == test_platform.id else None
+
+    monkeypatch.setattr("gateway.services.auth.get_platform_by_id", fake_get_platform)
+    app.dependency_overrides.pop(verify_auth_context, None)
+
+    resp = client.post(
+        "/api/v1/analyze",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "student_id": STUDENT_ID,
+            "task_description": "Sum two numbers",
+            "code": "def add(a, b):\n    return a + b",
+            "webhook_url": "https://httpbin.org/post",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "pending"
+
+
 def test_register_requires_api_key(gateway_app: tuple[TestClient, QueueService, object]) -> None:
     client, _queue, _app = gateway_app
     resp = client.post("/api/v1/auth/register")
