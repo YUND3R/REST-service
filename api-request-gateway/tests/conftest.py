@@ -10,7 +10,7 @@ from starlette.testclient import TestClient
 
 from db.models import Platform
 from gateway.main import create_app
-from gateway.services.auth import api_key_hash, verify_api_key
+from gateway.services.auth import AuthContext, api_key_hash, verify_auth_context
 from gateway.services.cache import CacheService
 from gateway.services.queue import QueueService
 
@@ -132,9 +132,9 @@ def gateway_app(monkeypatch: pytest.MonkeyPatch):
 def gateway_client(gateway_app, test_platform: Platform):
     client, queue, app = gateway_app
 
-    async def override_api_key() -> Platform:
-        return test_platform
+    async def override_auth_context() -> AuthContext:
+        return AuthContext(platform=test_platform)
 
-    app.dependency_overrides[verify_api_key] = override_api_key
+    app.dependency_overrides[verify_auth_context] = override_auth_context
     yield client, queue, test_platform
-    app.dependency_overrides.pop(verify_api_key, None)
+    app.dependency_overrides.pop(verify_auth_context, None)

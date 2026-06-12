@@ -9,6 +9,8 @@ from conftest import TEST_API_KEY
 from db.models import Platform
 from gateway.services.queue import QueueService
 
+STUDENT_ID = "a0000000-0000-4000-8000-000000000001"
+
 
 @pytest.mark.asyncio
 async def test_analyze_returns_pending_then_status_done(
@@ -20,7 +22,7 @@ async def test_analyze_returns_pending_then_status_done(
         "/api/v1/analyze",
         headers={"X-API-Key": TEST_API_KEY},
         json={
-            "student_id": "student-integration-1",
+            "student_id": STUDENT_ID,
             "task_description": "Sum two numbers",
             "code": "def add(a, b):\n    return a + b",
             "webhook_url": "https://httpbin.org/post",
@@ -43,7 +45,7 @@ async def test_analyze_returns_pending_then_status_done(
     await queue.complete_with_result(
         task_id,
         {
-            "student_id": "student-integration-1",
+            "student_id": STUDENT_ID,
             "analysis": {"score": 8, "tags": ["functions"], "weak_spots": []},
         },
     )
@@ -78,7 +80,7 @@ def test_analyze_requires_api_key(gateway_app: tuple[TestClient, QueueService, o
     resp = client.post(
         "/api/v1/analyze",
         json={
-            "student_id": "s",
+            "student_id": STUDENT_ID,
             "task_description": "t",
             "code": "c",
             "webhook_url": "https://httpbin.org/post",

@@ -9,6 +9,9 @@ from conftest import TEST_API_KEY
 from db.models import Platform
 from gateway.services.queue import QueueService
 
+STUDENT_ID_2 = "a0000000-0000-4000-8000-000000000002"
+STUDENT_ID_3 = "a0000000-0000-4000-8000-000000000003"
+
 
 @pytest.mark.asyncio
 async def test_generate_returns_pending_then_status_done(
@@ -20,7 +23,7 @@ async def test_generate_returns_pending_then_status_done(
         "/api/v1/generate",
         headers={"X-API-Key": TEST_API_KEY},
         json={
-            "student_id": "student-integration-2",
+            "student_id": STUDENT_ID_2,
             "tags": ["graphs"],
             "difficulty": "easy",
             "webhook_url": "https://httpbin.org/post",
@@ -42,7 +45,7 @@ async def test_generate_returns_pending_then_status_done(
     await queue.complete_with_result(
         task_id,
         {
-            "student_id": "student-integration-2",
+            "student_id": STUDENT_ID_2,
             "generated_task": {
                 "title": "Fix add_one",
                 "difficulty": "easy",
@@ -71,7 +74,7 @@ async def test_pipeline_returns_pending_then_status_done(
         "/api/v1/pipeline",
         headers={"X-API-Key": TEST_API_KEY},
         json={
-            "student_id": "student-integration-3",
+            "student_id": STUDENT_ID_3,
             "task_description": "Increment a number",
             "code": "def add_one(n):\n    return n - 1",
             "webhook_url": "https://httpbin.org/post",
@@ -93,7 +96,7 @@ async def test_pipeline_returns_pending_then_status_done(
     await queue.complete_with_result(
         task_id,
         {
-            "student_id": "student-integration-3",
+            "student_id": STUDENT_ID_3,
             "analysis": {"score": 5, "tags": ["functions"], "weak_spots": []},
             "generated_task": {"title": "Next task", "difficulty": "medium"},
             "profile_tags_used": ["functions"],
@@ -117,7 +120,7 @@ def test_generate_requires_api_key(gateway_app: tuple[TestClient, QueueService, 
     resp = client.post(
         "/api/v1/generate",
         json={
-            "student_id": "s",
+            "student_id": STUDENT_ID_2,
             "tags": ["python"],
             "difficulty": "easy",
             "webhook_url": "https://httpbin.org/post",
@@ -132,7 +135,7 @@ def test_pipeline_requires_api_key(gateway_app: tuple[TestClient, QueueService, 
     resp = client.post(
         "/api/v1/pipeline",
         json={
-            "student_id": "s",
+            "student_id": STUDENT_ID_3,
             "task_description": "t",
             "code": "c",
             "webhook_url": "https://httpbin.org/post",
