@@ -37,20 +37,28 @@ class QueueService:
         *,
         error: str | None = None,
         platform_id: str | None = None,
+        student_id: str | None = None,
     ) -> None:
         doc = {"status": status, "updated_at": time.time()}
-        if platform_id is None:
+        if platform_id is None or student_id is None:
             raw = await self._r.get(status_key(task_id))
             if raw:
                 try:
                     previous = json.loads(raw)
-                    previous_platform_id = previous.get("platform_id")
-                    if previous_platform_id:
-                        platform_id = str(previous_platform_id)
+                    if platform_id is None:
+                        previous_platform_id = previous.get("platform_id")
+                        if previous_platform_id:
+                            platform_id = str(previous_platform_id)
+                    if student_id is None:
+                        previous_student_id = previous.get("student_id")
+                        if previous_student_id:
+                            student_id = str(previous_student_id)
                 except json.JSONDecodeError:
                     pass
         if platform_id is not None:
             doc["platform_id"] = platform_id
+        if student_id is not None:
+            doc["student_id"] = student_id
         if error:
             doc["error"] = error
         await self._r.set(status_key(task_id), json.dumps(doc, ensure_ascii=False), ex=get_settings().cache_ttl_seconds)
@@ -99,7 +107,12 @@ class QueueService:
     async def enqueue_analyze(self, payload: dict[str, Any], *, task_id: str | None = None) -> str:
         s = get_settings()
         tid = task_id or str(uuid.uuid4())
-        await self.set_status(tid, STATUS_PENDING, platform_id=str(payload["platform_id"]))
+        await self.set_status(
+            tid,
+            STATUS_PENDING,
+            platform_id=str(payload["platform_id"]),
+            student_id=str(payload["student_external_id"]),
+        )
         body = {"task_id": tid, **payload}
         await self._r.xadd(s.stream_analyze, {"data": json.dumps(body, ensure_ascii=False)})
         await self.ensure_stream(s.stream_analyze)
@@ -109,7 +122,12 @@ class QueueService:
     async def enqueue_generate(self, payload: dict[str, Any], *, task_id: str | None = None) -> str:
         s = get_settings()
         tid = task_id or str(uuid.uuid4())
-        await self.set_status(tid, STATUS_PENDING, platform_id=str(payload["platform_id"]))
+        await self.set_status(
+            tid,
+            STATUS_PENDING,
+            platform_id=str(payload["platform_id"]),
+            student_id=str(payload["student_external_id"]),
+        )
         body = {"task_id": tid, **payload}
         await self._r.xadd(s.stream_generate, {"data": json.dumps(body, ensure_ascii=False)})
         await self.ensure_stream(s.stream_generate)
@@ -118,7 +136,12 @@ class QueueService:
     async def enqueue_pipeline(self, payload: dict[str, Any], *, task_id: str | None = None) -> str:
         s = get_settings()
         tid = task_id or str(uuid.uuid4())
-        await self.set_status(tid, STATUS_PENDING, platform_id=str(payload["platform_id"]))
+        await self.set_status(
+            tid,
+            STATUS_PENDING,
+            platform_id=str(payload["platform_id"]),
+            student_id=str(payload["student_external_id"]),
+        )
         body = {"task_id": tid, **payload}
         await self._r.xadd(s.stream_pipeline, {"data": json.dumps(body, ensure_ascii=False)})
         await self.ensure_stream(s.stream_pipeline)
@@ -127,7 +150,8 @@ class QueueService:
     async def complete_with_result(self, task_id: str, result: dict[str, Any]) -> None:
         snap = await self.get_snapshot(task_id)
         platform_id = str(snap["platform_id"]) if snap and snap.get("platform_id") else None
-        await self.set_status(task_id, STATUS_DONE, platform_id=platform_id)
+        student_id = str(snap["student_id"]) if snap and snap.get("student_id") else None
+        await self.set_status(task_id, STATUS_DONE, platform_id=platform_id, student_id=student_id)
         await self.set_result(task_id, result)
 
     async def enqueue_webhook(self, url: str, body: dict[str, Any], *, task_id: str) -> None:

@@ -40,6 +40,10 @@ async def task_status(
         raise HTTPException(status_code=404, detail="Unknown task_id")
     if str(snap.get("platform_id") or "") != str(ctx.platform.id):
         raise HTTPException(status_code=404, detail="Unknown task_id")
+    if ctx.is_user_auth:
+        snap_student = str(snap.get("student_id") or "")
+        if not snap_student or snap_student != str(ctx.user_id):
+            raise HTTPException(status_code=404, detail="Unknown task_id")
     raw = snap.get("status")
     st = _normalize_status(str(raw) if raw is not None else None)
     err = snap.get("error")

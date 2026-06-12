@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
 from conftest import TEST_API_KEY, FakeRedis
-from db.models import Platform
+from db.models import Platform, User
 from gateway.config import get_settings
 from gateway.services.auth import (
     AuthContext,
@@ -25,6 +25,20 @@ from gateway.services.auth import (
     get_platform_for_key,
     verify_auth_context,
 )
+
+
+def _jwt_payload(**extra: object) -> dict[str, object]:
+    settings = get_settings()
+    base: dict[str, object] = {
+        "sub": str(uuid.uuid4()),
+        "platform_id": str(uuid.uuid4()),
+        "type": "access",
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
+        "exp": datetime.now(UTC) + timedelta(hours=1),
+    }
+    base.update(extra)
+    return base
 
 
 def test_api_key_hash_is_deterministic() -> None:
@@ -54,13 +68,7 @@ def test_create_and_decode_access_token_round_trip() -> None:
 
 def test_decode_access_token_rejects_wrong_secret() -> None:
     settings = get_settings()
-    payload = {
-        "sub": str(uuid.uuid4()),
-        "platform_id": str(uuid.uuid4()),
-        "type": "access",
-        "exp": datetime.now(UTC) + timedelta(hours=1),
-    }
-    token = jwt.encode(payload, "wrong-secret", algorithm=settings.jwt_algorithm)
+    token = jwt.encode(_jwt_payload(), "wrong-secret", algorithm=settings.jwt_algorithm)
     with pytest.raises(HTTPException) as exc_info:
         decode_access_token(token)
     assert exc_info.value.status_code == 401
@@ -68,13 +76,10 @@ def test_decode_access_token_rejects_wrong_secret() -> None:
 
 def test_decode_access_token_rejects_expired_token() -> None:
     settings = get_settings()
-    payload = {
-        "sub": str(uuid.uuid4()),
-        "platform_id": str(uuid.uuid4()),
-        "type": "access",
-        "iat": datetime.now(UTC) - timedelta(hours=2),
-        "exp": datetime.now(UTC) - timedelta(hours=1),
-    }
+    payload = _jwt_payload(
+        iat=datetime.now(UTC) - timedelta(hours=2),
+        exp=datetime.now(UTC) - timedelta(hours=1),
+    )
     token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
     with pytest.raises(HTTPException) as exc_info:
         decode_access_token(token)
@@ -84,13 +89,7 @@ def test_decode_access_token_rejects_expired_token() -> None:
 
 def test_decode_access_token_rejects_wrong_type() -> None:
     settings = get_settings()
-    payload = {
-        "sub": str(uuid.uuid4()),
-        "platform_id": str(uuid.uuid4()),
-        "type": "refresh",
-        "exp": datetime.now(UTC) + timedelta(hours=1),
-    }
-    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    token = jwt.encode(_jwt_payload(type="refresh"), settings.jwt_secret, algorithm=settings.jwt_algorithm)
     with pytest.raises(HTTPException) as exc_info:
         decode_access_token(token)
     assert exc_info.value.status_code == 401
@@ -99,13 +98,7 @@ def test_decode_access_token_rejects_wrong_type() -> None:
 
 def test_decode_access_token_rejects_malformed_claims() -> None:
     settings = get_settings()
-    payload = {
-        "sub": "not-a-uuid",
-        "platform_id": str(uuid.uuid4()),
-        "type": "access",
-        "exp": datetime.now(UTC) + timedelta(hours=1),
-    }
-    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    token = jwt.encode(_jwt_payload(sub="not-a-uuid"), settings.jwt_secret, algorithm=settings.jwt_algorithm)
     with pytest.raises(HTTPException) as exc_info:
         decode_access_token(token)
     assert exc_info.value.status_code == 401
@@ -192,6 +185,11 @@ async def test_verify_auth_context_bearer_token(monkeypatch: pytest.MonkeyPatch)
 
     monkeypatch.setattr("gateway.services.auth.get_platform_by_id", fake_get_platform)
 
+    async def fake_get_user(uid: uuid.UUID, pid: uuid.UUID) -> User | None:
+        return User(id=uid, platform_id=pid) if uid == user_id and pid == platform.id else None
+
+    monkeypatch.setattr("gateway.services.users.get_user_for_platform", fake_get_user)
+
     ctx = await verify_auth_context(
         api_key=None,
         credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials=token),
@@ -221,6 +219,41 @@ async def test_verify_auth_context_missing_credentials() -> None:
     with pytest.raises(HTTPException) as exc_info:
         await verify_auth_context(api_key=None, credentials=None)
     assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_verify_auth_context_ambiguous_credentials() -> None:
+    token = create_access_token(user_id=uuid.uuid4(), platform_id=uuid.uuid4())
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_auth_context(
+            api_key=TEST_API_KEY,
+            credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials=token),
+        )
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_verify_auth_context_unknown_user(monkeypatch: pytest.MonkeyPatch) -> None:
+    platform = Platform(id=uuid.uuid4(), name="litcode", api_key="hash")
+    user_id = uuid.uuid4()
+    token = create_access_token(user_id=user_id, platform_id=platform.id)
+
+    async def fake_get_platform(platform_id: uuid.UUID) -> Platform | None:
+        return platform if platform_id == platform.id else None
+
+    async def fake_get_user(_uid: uuid.UUID, _pid: uuid.UUID) -> None:
+        return None
+
+    monkeypatch.setattr("gateway.services.auth.get_platform_by_id", fake_get_platform)
+    monkeypatch.setattr("gateway.services.users.get_user_for_platform", fake_get_user)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_auth_context(
+            api_key=None,
+            credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials=token),
+        )
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "Unknown or revoked user"
 
 
 @pytest.mark.asyncio
@@ -263,6 +296,15 @@ async def test_check_auth_rate_limit_uses_user_bucket_for_jwt_auth() -> None:
     ctx = AuthContext(platform=platform, user_id=user_id)
     await check_auth_rate_limit(fake_redis, ctx)
     assert f"rate_limit:user:{user_id}" in fake_redis.strings
+
+
+@pytest.mark.asyncio
+async def test_check_auth_rate_limit_uses_platform_bucket_for_api_key_auth() -> None:
+    fake_redis = FakeRedis()
+    platform = Platform(id=uuid.uuid4(), name="p", api_key="platform-key-hash")
+    ctx = AuthContext(platform=platform)
+    await check_auth_rate_limit(fake_redis, ctx)
+    assert f"rate_limit:platform:{platform.id}" in fake_redis.strings
 
 
 @pytest.mark.asyncio

@@ -71,7 +71,7 @@ async def generate(
 
     if cached is not None:
         task_id = str(uuid.uuid4())
-        await queue.set_status(task_id, "pending", platform_id=str(ctx.platform.id))
+        await queue.set_status(task_id, "pending", platform_id=str(ctx.platform.id), student_id=str(body.student_id))
         webhook_body: dict[str, Any] = {"student_id": str(body.student_id), "generated_task": cached}
         await queue.complete_with_result(task_id, webhook_body)
         asyncio.create_task(deliver_webhook(str(body.webhook_url), webhook_body))

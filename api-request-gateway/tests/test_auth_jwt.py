@@ -101,7 +101,11 @@ async def test_analyze_with_real_jwt_verify_auth(
     async def fake_get_platform(platform_id: uuid.UUID) -> Platform | None:
         return test_platform if platform_id == test_platform.id else None
 
+    async def fake_get_user(uid: uuid.UUID, pid: uuid.UUID) -> User | None:
+        return User(id=uid, platform_id=pid) if uid == user_id and pid == test_platform.id else None
+
     monkeypatch.setattr("gateway.services.auth.get_platform_by_id", fake_get_platform)
+    monkeypatch.setattr("gateway.services.users.get_user_for_platform", fake_get_user)
     app.dependency_overrides.pop(verify_auth_context, None)
 
     resp = client.post(
@@ -116,6 +120,42 @@ async def test_analyze_with_real_jwt_verify_auth(
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_status_jwt_cannot_read_other_student_task(
+    gateway_app: tuple[TestClient, QueueService, object],
+    test_platform: Platform,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, queue, app = gateway_app
+    owner_id = uuid.uuid4()
+    other_id = uuid.uuid4()
+    task_id = str(uuid.uuid4())
+    token = create_access_token(user_id=other_id, platform_id=test_platform.id)
+
+    await queue.set_status(
+        task_id,
+        "pending",
+        platform_id=str(test_platform.id),
+        student_id=str(owner_id),
+    )
+
+    async def fake_get_platform(platform_id: uuid.UUID) -> Platform | None:
+        return test_platform if platform_id == test_platform.id else None
+
+    async def fake_get_user(uid: uuid.UUID, pid: uuid.UUID) -> User | None:
+        return User(id=uid, platform_id=pid) if pid == test_platform.id else None
+
+    monkeypatch.setattr("gateway.services.auth.get_platform_by_id", fake_get_platform)
+    monkeypatch.setattr("gateway.services.users.get_user_for_platform", fake_get_user)
+    app.dependency_overrides.pop(verify_auth_context, None)
+
+    status_resp = client.get(
+        f"/api/v1/status/{task_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert status_resp.status_code == 404
 
 
 def test_register_requires_api_key(gateway_app: tuple[TestClient, QueueService, object]) -> None:

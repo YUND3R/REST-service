@@ -47,6 +47,8 @@ def create_access_token(*, user_id: uuid.UUID, platform_id: uuid.UUID) -> str:
         "sub": str(user_id),
         "platform_id": str(platform_id),
         "type": "access",
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
     }
@@ -60,7 +62,9 @@ def decode_access_token(token: str) -> tuple[uuid.UUID, uuid.UUID]:
             token,
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
-            options={"require": ["sub", "platform_id", "exp", "type"]},
+            issuer=settings.jwt_issuer,
+            audience=settings.jwt_audience,
+            options={"require": ["sub", "platform_id", "exp", "type", "iss", "aud"]},
         )
     except jwt.PyJWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired access token") from exc
@@ -100,13 +104,22 @@ async def verify_auth_context(
     api_key: str | None = Security(api_key_header),
     credentials: HTTPAuthorizationCredentials | None = Security(http_bearer),  # noqa: B008
 ) -> AuthContext:
-    if credentials is not None and credentials.scheme.lower() == "bearer":
+    has_bearer = credentials is not None and credentials.scheme.lower() == "bearer"
+    has_api_key = bool(api_key)
+    if has_bearer and has_api_key:
+        raise HTTPException(status_code=400, detail="Use either X-API-Key or Bearer token, not both")
+    if has_bearer:
         user_id, platform_id = decode_access_token(credentials.credentials)
         platform = await get_platform_by_id(platform_id)
         if platform is None:
             raise HTTPException(status_code=401, detail="Unknown platform in token")
+        from gateway.services.users import get_user_for_platform
+
+        user = await get_user_for_platform(user_id, platform.id)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Unknown or revoked user")
         return AuthContext(platform=platform, user_id=user_id)
-    if api_key:
+    if has_api_key:
         platform = await get_platform_for_key(api_key)
         return AuthContext(platform=platform)
     raise HTTPException(status_code=401, detail="Missing authentication: X-API-Key or Bearer token")
@@ -117,10 +130,18 @@ def ensure_student_access(ctx: AuthContext, student_id: uuid.UUID) -> None:
         raise HTTPException(status_code=403, detail="student_id does not match authenticated user")
 
 
-async def check_rate_limit(redis: redis.Redis, *, api_key: str | None = None, user_id: uuid.UUID | None = None) -> None:
+async def check_rate_limit(
+    redis: redis.Redis,
+    *,
+    api_key: str | None = None,
+    user_id: uuid.UUID | None = None,
+    platform_id: uuid.UUID | None = None,
+) -> None:
     limit = get_settings().rate_limit_per_hour
     if user_id is not None:
         key = f"rate_limit:user:{user_id}"
+    elif platform_id is not None:
+        key = f"rate_limit:platform:{platform_id}"
     elif api_key is not None:
         key = f"rate_limit:{api_key_fingerprint(api_key)}"
     else:
@@ -143,4 +164,4 @@ async def check_auth_rate_limit(r: redis.Redis, ctx: AuthContext) -> None:
     if ctx.is_user_auth:
         await check_rate_limit(r, user_id=ctx.user_id)
     else:
-        await check_rate_limit(r, api_key=ctx.platform.api_key)
+        await check_rate_limit(r, platform_id=ctx.platform.id)

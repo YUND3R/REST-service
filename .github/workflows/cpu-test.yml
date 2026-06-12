@@ -209,6 +209,7 @@ jobs:
           KUBE: ${{ secrets.KUBECONFIG_ML }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           set -euo pipefail
           missing=0
@@ -222,6 +223,11 @@ jobs:
           fi
           if [ -z "${WEBHOOK_SIGNING_SECRET:-}" ]; then
             echo "::error::Secret WEBHOOK_SIGNING_SECRET is not set."
+            missing=1
+          fi
+          jwt_secret="${JWT_SECRET:-${WEBHOOK_SIGNING_SECRET:-}}"
+          if [ ${#jwt_secret} -lt 32 ]; then
+            echo "::error::JWT_SECRET (or WEBHOOK_SIGNING_SECRET fallback) must be at least 32 characters."
             missing=1
           fi
           if [ "$missing" -ne 0 ]; then
@@ -245,8 +251,10 @@ jobs:
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           set -euo pipefail
+          jwt_secret="${JWT_SECRET:-${WEBHOOK_SIGNING_SECRET}}"
           db_url="postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD}@postgres:5432/ai_mentor"
           kubectl create namespace edu-ml --dry-run=client -o yaml | kubectl apply -f -
           kubectl -n edu-ml create secret generic postgres-secrets \
@@ -255,7 +263,7 @@ jobs:
           kubectl -n edu-ml create secret generic gateway-secrets \
             --from-literal=database-url="${db_url}" \
             --from-literal=webhook-signing-secret="${WEBHOOK_SIGNING_SECRET}" \
-            --from-literal=jwt-secret="${WEBHOOK_SIGNING_SECRET}" \
+            --from-literal=jwt-secret="${jwt_secret}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply ML manifests
@@ -300,6 +308,7 @@ jobs:
           KUBE: ${{ secrets.KUBECONFIG_EDGE }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ML_NODE_HOST: ${{ secrets.ML_NODE_HOST }}
           EDGE_OVERLAY: deploy/k8s/clusters/${{ needs.deploy-config.outputs.edge_overlay }}
         run: |
@@ -315,6 +324,11 @@ jobs:
           fi
           if [ -z "${WEBHOOK_SIGNING_SECRET:-}" ]; then
             echo "::error::Secret WEBHOOK_SIGNING_SECRET is not set."
+            missing=1
+          fi
+          jwt_secret="${JWT_SECRET:-${WEBHOOK_SIGNING_SECRET:-}}"
+          if [ ${#jwt_secret} -lt 32 ]; then
+            echo "::error::JWT_SECRET (or WEBHOOK_SIGNING_SECRET fallback) must be at least 32 characters."
             missing=1
           fi
           if [ "$EDGE_OVERLAY" = "deploy/k8s/clusters/edge" ] && [ -z "${ML_NODE_HOST:-}" ]; then
@@ -342,8 +356,10 @@ jobs:
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           set -euo pipefail
+          jwt_secret="${JWT_SECRET:-${WEBHOOK_SIGNING_SECRET}}"
           db_url="postgresql+asyncpg://ai_mentor:${POSTGRES_PASSWORD}@postgres:5432/ai_mentor"
           kubectl create namespace edu-ml --dry-run=client -o yaml | kubectl apply -f -
           kubectl -n edu-ml create secret generic postgres-secrets \
@@ -352,7 +368,7 @@ jobs:
           kubectl -n edu-ml create secret generic gateway-secrets \
             --from-literal=database-url="${db_url}" \
             --from-literal=webhook-signing-secret="${WEBHOOK_SIGNING_SECRET}" \
-            --from-literal=jwt-secret="${WEBHOOK_SIGNING_SECRET}" \
+            --from-literal=jwt-secret="${jwt_secret}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply Edge manifests

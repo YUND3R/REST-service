@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Self
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,9 +30,11 @@ class Settings(BaseSettings):
     stream_pipeline: str = "queue:pipeline"
     stream_webhook: str = "queue:webhook"
 
-    jwt_secret: str = "dev-jwt-secret-change-in-production"
+    jwt_secret: str = "dev-jwt-secret-at-least-32-chars-long!!"
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 60 * 24
+    jwt_expire_minutes: int = 60
+    jwt_issuer: str = "api-request-gateway"
+    jwt_audience: str = "litcode-student"
 
     @field_validator("docs_enabled", mode="before")
     @classmethod
@@ -39,6 +42,12 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return v.lower() in ("1", "true", "yes", "on")
         return v
+
+    @model_validator(mode="after")
+    def _validate_jwt_secret_in_production(self) -> Self:
+        if self.environment == "production" and len(self.jwt_secret.strip()) < 32:
+            raise ValueError("JWT_SECRET must be at least 32 characters when ENVIRONMENT=production")
+        return self
 
 
 @lru_cache
