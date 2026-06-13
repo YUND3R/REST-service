@@ -46,7 +46,7 @@ spec:
             - name: RATE_LIMIT_PER_HOUR
               value: "1000"
             - name: DOCS_ENABLED
-              value: "false"
+              value: "true"
             - name: CORS_ORIGINS
               value: https://app.example.com
             - name: WEBHOOK_ALLOWED_HOSTS

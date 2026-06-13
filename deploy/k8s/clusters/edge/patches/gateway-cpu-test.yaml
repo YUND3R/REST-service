@@ -20,7 +20,7 @@ spec:
             - name: ENVIRONMENT
               value: production
             - name: DOCS_ENABLED
-              value: "false"
+              value: "true"
           readinessProbe:
             initialDelaySeconds: 45
             periodSeconds: 10
