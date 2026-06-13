@@ -25,7 +25,6 @@ async def register(
     platform: Platform = Depends(verify_api_key),
     r: redis.Redis = Depends(get_redis),
 ) -> AuthRegisterResponse:
-    """Register a new user (UUID) for the platform. Called by LitCode backend on student signup."""
     await check_rate_limit(r, platform_id=platform.id)
     user, token = await register_user(platform)
     return AuthRegisterResponse(user_id=user.id, access_token=token)
@@ -42,7 +41,6 @@ async def issue_token(
     platform: Platform = Depends(verify_api_key),
     r: redis.Redis = Depends(get_redis),
 ) -> TokenResponse:
-    """Re-issue JWT for an existing registered user (platform backend or refresh flow)."""
     await check_rate_limit(r, platform_id=platform.id)
     user = await get_user_for_platform(body.user_id, platform.id)
     if user is None:
