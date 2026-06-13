@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 
@@ -13,7 +12,6 @@ from gateway.services.auth import AuthContext, check_auth_rate_limit, ensure_stu
 from gateway.services.cache import CacheService, pipeline_cache_key
 from gateway.services.queue import QueueService
 from gateway.services.students import get_or_create_student
-from gateway.services.webhook import deliver_webhook
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +47,7 @@ async def pipeline(
         task_id = str(uuid.uuid4())
         await queue.set_status(task_id, "pending", platform_id=str(ctx.platform.id), student_id=str(body.student_id))
         await queue.complete_with_result(task_id, cached)
-        asyncio.create_task(deliver_webhook(str(body.webhook_url), cached))
+        await queue.enqueue_webhook(str(body.webhook_url), cached, task_id=task_id)
         return TaskAccepted(task_id=task_id)
 
     payload = {

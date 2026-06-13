@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 from typing import Any
@@ -16,7 +15,6 @@ from gateway.services.auth import AuthContext, check_auth_rate_limit, ensure_stu
 from gateway.services.cache import CacheService, generate_cache_key
 from gateway.services.queue import QueueService
 from gateway.services.students import get_or_create_student
-from gateway.services.webhook import deliver_webhook
 
 logger = logging.getLogger(__name__)
 
@@ -74,10 +72,8 @@ async def generate(
         await queue.set_status(task_id, "pending", platform_id=str(ctx.platform.id), student_id=str(body.student_id))
         webhook_body: dict[str, Any] = {"student_id": str(body.student_id), "generated_task": cached}
         await queue.complete_with_result(task_id, webhook_body)
-        asyncio.create_task(deliver_webhook(str(body.webhook_url), webhook_body))
-        asyncio.create_task(
-            _persist_generated(student_uuid, list(body.tags), body.difficulty, cached, None)
-        )
+        await queue.enqueue_webhook(str(body.webhook_url), webhook_body, task_id=task_id)
+        await _persist_generated(student_uuid, list(body.tags), body.difficulty, cached, None)
         return TaskAccepted(task_id=task_id)
 
     payload = {

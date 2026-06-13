@@ -102,14 +102,17 @@ async def validate_webhook_destination(url: str) -> None:
             raise UnsafeWebhookUrl("webhook host resolves to a forbidden IP range")
 
 
-async def deliver_webhook(url: str, body: dict, *, timeout: float = 30.0) -> None:
+async def deliver_webhook(url: str, body: dict, *, timeout: float = 30.0) -> bool:
     try:
         await validate_webhook_destination(url)
         headers = build_webhook_headers(body)
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
             response = await client.post(url, json=body, headers=headers)
             response.raise_for_status()
+        return True
     except UnsafeWebhookUrl:
         logger.warning("Unsafe webhook URL blocked: %s", _safe_url_label(url))
+        return False
     except Exception:
         logger.exception("Webhook delivery failed: %s", _safe_url_label(url))
+        return False
