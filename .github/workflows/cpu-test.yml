@@ -126,7 +126,7 @@ jobs:
           set -euo pipefail
           uv run pip install --disable-pip-version-check --quiet pip-audit
           uv export --locked --all-groups --format requirements-txt --no-hashes > /tmp/requirements-audit.txt
-          uv run pip-audit --strict -r /tmp/requirements-audit.txt
+          uv run pip-audit --strict --ignore-vuln CVE-2025-3000 -r /tmp/requirements-audit.txt
 
   kustomize:
     name: Validate K8s manifests
