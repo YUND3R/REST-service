@@ -14,13 +14,13 @@ spec:
             - name: POSTGRES_SSL_CHECK_HOSTNAME
               value: "false"
             - name: CORS_ORIGINS
-              value: "*"
+              value: "https://cpu-test2clusteres.ru"
             - name: WEBHOOK_ALLOWED_HOSTS
-              value: ""
+              value: "webhooks.example.com"
             - name: ENVIRONMENT
-              value: development
+              value: production
             - name: DOCS_ENABLED
-              value: "true"
+              value: "false"
           readinessProbe:
             initialDelaySeconds: 45
             periodSeconds: 10

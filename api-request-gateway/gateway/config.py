@@ -6,6 +6,8 @@ from typing import Self
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEFAULT_DEV_JWT_SECRET = "dev-jwt-secret-at-least-32-chars-long!!"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -30,7 +32,7 @@ class Settings(BaseSettings):
     stream_pipeline: str = "queue:pipeline"
     stream_webhook: str = "queue:webhook"
 
-    jwt_secret: str = "dev-jwt-secret-at-least-32-chars-long!!"
+    jwt_secret: str = DEFAULT_DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
     jwt_issuer: str = "api-request-gateway"
@@ -47,6 +49,16 @@ class Settings(BaseSettings):
     def _validate_jwt_secret_in_production(self) -> Self:
         if self.environment == "production" and len(self.jwt_secret.strip()) < 32:
             raise ValueError("JWT_SECRET must be at least 32 characters when ENVIRONMENT=production")
+        if self.environment == "production" and self.jwt_secret == DEFAULT_DEV_JWT_SECRET:
+            raise ValueError("JWT_SECRET must not use the built-in development default in production")
+        if self.environment == "production" and self.docs_enabled:
+            raise ValueError("DOCS_ENABLED must be false when ENVIRONMENT=production")
+        if self.environment == "production" and self.cors_origins.strip() == "*":
+            raise ValueError("CORS_ORIGINS must not be '*' when ENVIRONMENT=production")
+        if self.environment == "production" and not self.webhook_allowed_hosts.strip():
+            raise ValueError("WEBHOOK_ALLOWED_HOSTS must be set when ENVIRONMENT=production")
+        if self.environment == "production" and self.webhook_allowed_hosts.strip() == "*":
+            raise ValueError("WEBHOOK_ALLOWED_HOSTS must not be '*' when ENVIRONMENT=production")
         return self
 
 

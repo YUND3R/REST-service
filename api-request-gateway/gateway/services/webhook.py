@@ -71,6 +71,8 @@ async def validate_webhook_destination(url: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"}:
         raise UnsafeWebhookUrl("webhook URL scheme must be http or https")
+    if os.getenv("ENVIRONMENT", "").strip().lower() == "production" and parsed.scheme != "https":
+        raise UnsafeWebhookUrl("webhook URL scheme must be https in production")
     host = (parsed.hostname or "").strip().lower().rstrip(".")
     if not host or host == "localhost" or host.endswith(".localhost"):
         raise UnsafeWebhookUrl("webhook host must not be loopback/internal")

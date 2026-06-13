@@ -21,6 +21,9 @@ def _allowed_webhook_hosts() -> set[str]:
 
 
 def _validate_webhook_url(url: HttpUrl) -> HttpUrl:
+    env = os.getenv("ENVIRONMENT", "").strip().lower()
+    if env == "production" and url.scheme != "https":
+        raise ValueError("webhook_url must use https in production")
     host = (url.host or "").strip().lower().rstrip(".")
     if not host:
         raise ValueError("webhook_url host is required")
