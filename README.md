@@ -199,3 +199,8 @@ curl "https://test4rest-service.ru/api/v1/status/<TASK_ID>" \
 
 Это позволяет не раскрывать `X-API-Key` в браузере и централизовать интеграционную логику.
 
+# Архитектура сервиса
+
+Вместо GPU нод используются обычные CPU ноды с mock-worker.
+![10.png](https://github.com/YUND3R/REST-service/blob/CPU-test/10.png)
+
