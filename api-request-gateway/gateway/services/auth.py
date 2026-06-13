@@ -67,25 +67,25 @@ def decode_access_token(token: str) -> tuple[uuid.UUID, uuid.UUID]:
             options={"require": ["sub", "platform_id", "exp", "type", "iss", "aud"]},
         )
     except jwt.PyJWTError as exc:
-        raise HTTPException(status_code=401, detail="Invalid or expired access token") from exc
+        raise HTTPException(status_code=401, detail="Недействительный или просроченный access token") from exc
     if payload.get("type") != "access":
-        raise HTTPException(status_code=401, detail="Invalid token type")
+        raise HTTPException(status_code=401, detail="Неверный тип токена")
     try:
         user_id = uuid.UUID(str(payload["sub"]))
         platform_id = uuid.UUID(str(payload["platform_id"]))
     except ValueError as exc:
-        raise HTTPException(status_code=401, detail="Malformed token claims") from exc
+        raise HTTPException(status_code=401, detail="Некорректные claims в токене") from exc
     return user_id, platform_id
 
 
 async def get_platform_for_key(api_key: str | None) -> Platform:
     if not api_key:
-        raise HTTPException(status_code=401, detail="Missing X-API-Key header")
+        raise HTTPException(status_code=401, detail="Отсутствует заголовок X-API-Key")
     lookup_key = api_key_hash(api_key)
     async with session_scope() as session:
         row = (await session.execute(select(Platform).where(Platform.api_key == lookup_key))).scalar_one_or_none()
     if row is None:
-        raise HTTPException(status_code=403, detail="Invalid API key")
+        raise HTTPException(status_code=403, detail="Неверный API-ключ")
     return row
 
 
@@ -107,27 +107,27 @@ async def verify_auth_context(
     has_bearer = credentials is not None and credentials.scheme.lower() == "bearer"
     has_api_key = bool(api_key)
     if has_bearer and has_api_key:
-        raise HTTPException(status_code=400, detail="Use either X-API-Key or Bearer token, not both")
+        raise HTTPException(status_code=400, detail="Используйте либо X-API-Key, либо Bearer token, но не оба сразу")
     if has_bearer:
         user_id, platform_id = decode_access_token(credentials.credentials)
         platform = await get_platform_by_id(platform_id)
         if platform is None:
-            raise HTTPException(status_code=401, detail="Unknown platform in token")
+            raise HTTPException(status_code=401, detail="Неизвестная платформа в токене")
         from gateway.services.users import get_user_for_platform
 
         user = await get_user_for_platform(user_id, platform.id)
         if user is None:
-            raise HTTPException(status_code=401, detail="Unknown or revoked user")
+            raise HTTPException(status_code=401, detail="Пользователь не найден или отозван")
         return AuthContext(platform=platform, user_id=user_id)
     if has_api_key:
         platform = await get_platform_for_key(api_key)
         return AuthContext(platform=platform)
-    raise HTTPException(status_code=401, detail="Missing authentication: X-API-Key or Bearer token")
+    raise HTTPException(status_code=401, detail="Требуется авторизация: X-API-Key или Bearer token")
 
 
 def ensure_student_access(ctx: AuthContext, student_id: uuid.UUID) -> None:
     if ctx.is_user_auth and student_id != ctx.user_id:
-        raise HTTPException(status_code=403, detail="student_id does not match authenticated user")
+        raise HTTPException(status_code=403, detail="student_id не совпадает с авторизованным пользователем")
 
 
 async def check_rate_limit(
@@ -155,7 +155,7 @@ async def check_rate_limit(
     if int(n) > limit:
         raise HTTPException(
             status_code=429,
-            detail="Rate limit exceeded",
+            detail="Превышен лимит запросов",
             headers={"Retry-After": "3600"},
         )
 

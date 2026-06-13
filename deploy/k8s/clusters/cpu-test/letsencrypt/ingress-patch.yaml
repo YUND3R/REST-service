@@ -9,10 +9,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - INGRESS_HOST
+        - api.test4rest-service.ru
       secretName: edu-ml-tls-le
   rules:
-    - host: INGRESS_HOST
+    - host: api.test4rest-service.ru
       http:
         paths:
           - path: /

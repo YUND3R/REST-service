@@ -30,7 +30,12 @@ def get_cache(request: Request) -> CacheService:
     return request.app.state.cache
 
 
-@router.post("/pipeline", response_model=TaskAccepted)
+@router.post(
+    "/pipeline",
+    response_model=TaskAccepted,
+    tags=["Пайплайн"],
+    summary="Запустить полный пайплайн (analyze + generate)",
+)
 async def pipeline(
     body: PipelineIn,
     ctx: AuthContext = Depends(verify_auth_context),

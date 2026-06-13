@@ -15,7 +15,12 @@ def get_redis(request: Request) -> redis.Redis:
     return request.app.state.redis
 
 
-@router.post("/auth/register", response_model=AuthRegisterResponse)
+@router.post(
+    "/auth/register",
+    response_model=AuthRegisterResponse,
+    tags=["Авторизация"],
+    summary="Регистрация пользователя платформой",
+)
 async def register(
     platform: Platform = Depends(verify_api_key),
     r: redis.Redis = Depends(get_redis),
@@ -26,7 +31,12 @@ async def register(
     return AuthRegisterResponse(user_id=user.id, access_token=token)
 
 
-@router.post("/auth/token", response_model=TokenResponse)
+@router.post(
+    "/auth/token",
+    response_model=TokenResponse,
+    tags=["Авторизация"],
+    summary="Перевыпуск JWT для пользователя",
+)
 async def issue_token(
     body: TokenRequest,
     platform: Platform = Depends(verify_api_key),
@@ -36,6 +46,6 @@ async def issue_token(
     await check_rate_limit(r, platform_id=platform.id)
     user = await get_user_for_platform(body.user_id, platform.id)
     if user is None:
-        raise HTTPException(status_code=404, detail="Unknown user_id")
+        raise HTTPException(status_code=404, detail="Неизвестный user_id")
     token = await issue_token_for_user(user)
     return TokenResponse(access_token=token, user_id=user.id)

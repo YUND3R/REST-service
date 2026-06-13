@@ -36,11 +36,16 @@ async def _resolve_student(platform: Platform, external_student_id: uuid.UUID) -
             )
         ).scalar_one_or_none()
         if student is None:
-            raise HTTPException(status_code=404, detail="Unknown student_id")
+            raise HTTPException(status_code=404, detail="Неизвестный student_id")
         return student
 
 
-@router.get("/students/{student_id}/history", response_model=StudentHistoryResponse)
+@router.get(
+    "/students/{student_id}/history",
+    response_model=StudentHistoryResponse,
+    tags=["Студенты"],
+    summary="Получить историю студента",
+)
 async def student_history(
     student_id: uuid.UUID,
     ctx: AuthContext = Depends(verify_auth_context),
@@ -95,7 +100,12 @@ async def student_history(
     return StudentHistoryResponse(student_id=str(student_id), analyses=analyses, generated_tasks=generated_tasks)
 
 
-@router.get("/students/{student_id}/profile", response_model=StudentProfileResponse)
+@router.get(
+    "/students/{student_id}/profile",
+    response_model=StudentProfileResponse,
+    tags=["Студенты"],
+    summary="Получить профиль студента",
+)
 async def student_profile(
     student_id: uuid.UUID,
     ctx: AuthContext = Depends(verify_auth_context),
@@ -106,5 +116,5 @@ async def student_profile(
     student = await _resolve_student(ctx.platform, student_id)
     profile = await get_student_profile(r, student_id=str(student.id))
     if profile is None:
-        raise HTTPException(status_code=404, detail="Student profile not found")
+        raise HTTPException(status_code=404, detail="Профиль студента не найден")
     return StudentProfileResponse(student_id=str(student_id), profile=profile)

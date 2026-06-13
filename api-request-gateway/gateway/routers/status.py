@@ -26,7 +26,12 @@ def _normalize_status(raw: str | None) -> str:
     return STATUS_PENDING
 
 
-@router.get("/status/{task_id}", response_model=TaskStatusResponse)
+@router.get(
+    "/status/{task_id}",
+    response_model=TaskStatusResponse,
+    tags=["Статус задач"],
+    summary="Получить статус задачи",
+)
 async def task_status(
     task_id: uuid.UUID,
     ctx: AuthContext = Depends(verify_auth_context),
@@ -37,13 +42,13 @@ async def task_status(
     task_id_str = str(task_id)
     snap = await queue.get_snapshot(task_id_str)
     if not snap:
-        raise HTTPException(status_code=404, detail="Unknown task_id")
+        raise HTTPException(status_code=404, detail="Неизвестный task_id")
     if str(snap.get("platform_id") or "") != str(ctx.platform.id):
-        raise HTTPException(status_code=404, detail="Unknown task_id")
+        raise HTTPException(status_code=404, detail="Неизвестный task_id")
     if ctx.is_user_auth:
         snap_student = str(snap.get("student_id") or "")
         if not snap_student or snap_student != str(ctx.user_id):
-            raise HTTPException(status_code=404, detail="Unknown task_id")
+            raise HTTPException(status_code=404, detail="Неизвестный task_id")
     raw = snap.get("status")
     st = _normalize_status(str(raw) if raw is not None else None)
     err = snap.get("error")

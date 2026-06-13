@@ -54,7 +54,12 @@ async def _persist_analysis_row(
         await session.commit()
 
 
-@router.post("/analyze", response_model=TaskAccepted)
+@router.post(
+    "/analyze",
+    response_model=TaskAccepted,
+    tags=["Анализ кода"],
+    summary="Запустить анализ кода",
+)
 async def analyze(
     body: AnalyzeIn,
     ctx: AuthContext = Depends(verify_auth_context),

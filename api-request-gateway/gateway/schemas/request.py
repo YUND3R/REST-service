@@ -23,21 +23,21 @@ def _allowed_webhook_hosts() -> set[str]:
 def _validate_webhook_url(url: HttpUrl) -> HttpUrl:
     env = os.getenv("ENVIRONMENT", "").strip().lower()
     if env == "production" and url.scheme != "https":
-        raise ValueError("webhook_url must use https in production")
+        raise ValueError("В production поле webhook_url должно использовать https")
     host = (url.host or "").strip().lower().rstrip(".")
     if not host:
-        raise ValueError("webhook_url host is required")
+        raise ValueError("В webhook_url должен быть указан host")
     if host in {"localhost"} or host.endswith(".localhost"):
-        raise ValueError("webhook_url must not target loopback hostnames")
+        raise ValueError("webhook_url не должен указывать на loopback-имена")
     try:
         ip = ipaddress.ip_address(host.strip("[]"))
     except ValueError:
         ip = None
     if ip and (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved):
-        raise ValueError("webhook_url must not target private or reserved IP ranges")
+        raise ValueError("webhook_url не должен указывать на private/reserved диапазоны IP")
     allowed = _allowed_webhook_hosts()
     if allowed and host not in allowed and not any(host.endswith(f".{allowed_host}") for allowed_host in allowed):
-        raise ValueError("webhook_url host is not allowed")
+        raise ValueError("Host из webhook_url не входит в список разрешенных")
     return url
 
 
@@ -64,9 +64,9 @@ class GenerateIn(BaseModel):
     def validate_tags(cls, v: list[str]) -> list[str]:
         out = [tag.strip() for tag in v if tag.strip()]
         if not out:
-            raise ValueError("tags must contain at least one non-empty value")
+            raise ValueError("Список tags должен содержать хотя бы одно непустое значение")
         if any(len(tag) > MAX_TAG_LEN for tag in out):
-            raise ValueError(f"tags must be at most {MAX_TAG_LEN} characters")
+            raise ValueError(f"Каждый tag должен быть не длиннее {MAX_TAG_LEN} символов")
         return out
 
     @field_validator("webhook_url")

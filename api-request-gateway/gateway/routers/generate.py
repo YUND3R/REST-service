@@ -53,7 +53,12 @@ async def _persist_generated(
         await session.commit()
 
 
-@router.post("/generate", response_model=TaskAccepted)
+@router.post(
+    "/generate",
+    response_model=TaskAccepted,
+    tags=["Генерация задач"],
+    summary="Сгенерировать задачу",
+)
 async def generate(
     body: GenerateIn,
     ctx: AuthContext = Depends(verify_auth_context),
