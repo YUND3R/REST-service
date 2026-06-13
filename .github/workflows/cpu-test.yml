@@ -121,6 +121,11 @@ jobs:
       - name: Byte-compile
         run: uv run python -m compileall -q gateway workers models db tests
 
+      - name: Dependency audit (baseline)
+        run: |
+          uv run pip install --disable-pip-version-check --quiet pip-audit
+          uv run pip-audit --strict
+
   kustomize:
     name: Validate K8s manifests
     runs-on: ubuntu-latest

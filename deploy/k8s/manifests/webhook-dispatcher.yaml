@@ -45,6 +45,7 @@ spec:
             capabilities:
               drop:
                 - ALL
+            readOnlyRootFilesystem: true
             runAsUser: 10001
           volumeMounts:
             - name: redis-tls

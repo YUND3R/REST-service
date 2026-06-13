@@ -93,6 +93,14 @@ spec:
             limits:
               memory: 1Gi
               cpu: "2"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
       volumes:
         - name: redis-tls
           secret:
