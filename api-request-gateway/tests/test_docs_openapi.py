@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
+from starlette.testclient import TestClient
+
 from gateway.config import get_settings
 from gateway.main import create_app
-from starlette.testclient import TestClient
 
 
 class _DummyRedis:
