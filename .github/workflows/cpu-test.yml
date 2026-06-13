@@ -122,8 +122,6 @@ jobs:
         run: uv run python -m compileall -q gateway workers models db tests
 
       - name: Dependency audit (baseline)
-        env:
-          PIPAPI_PYTHON_LOCATION: /home/runner/work/REST-service/REST-service/api-request-gateway/.venv/bin/python
         run: |
           set -euo pipefail
           uv run pip install --disable-pip-version-check --quiet pip-audit
