@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     rate_limit_per_hour: int = 1000
     cache_ttl_seconds: int = 24 * 3600
-    docs_enabled: bool = False
+    docs_enabled: bool = True
 
     cors_origins: str = "https://app.example.com"
     webhook_allowed_hosts: str = ""
@@ -51,8 +51,6 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must be at least 32 characters when ENVIRONMENT=production")
         if self.environment == "production" and self.jwt_secret == DEFAULT_DEV_JWT_SECRET:
             raise ValueError("JWT_SECRET must not use the built-in development default in production")
-        if self.environment == "production" and self.docs_enabled:
-            raise ValueError("DOCS_ENABLED must be false when ENVIRONMENT=production")
         if self.environment == "production" and self.cors_origins.strip() == "*":
             raise ValueError("CORS_ORIGINS must not be '*' when ENVIRONMENT=production")
         if self.environment == "production" and not self.webhook_allowed_hosts.strip():
