@@ -71,7 +71,7 @@ def test_status_unknown_task_returns_404(
         headers={"X-API-Key": TEST_API_KEY},
     )
     assert resp.status_code == 404
-    assert resp.json()["detail"] == "Unknown task_id"
+    assert resp.json()["detail"] == "Неизвестный task_id"
 
 
 def test_analyze_requires_api_key(gateway_app: tuple[TestClient, QueueService, object]) -> None:

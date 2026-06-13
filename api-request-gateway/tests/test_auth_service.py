@@ -84,7 +84,7 @@ def test_decode_access_token_rejects_expired_token() -> None:
     with pytest.raises(HTTPException) as exc_info:
         decode_access_token(token)
     assert exc_info.value.status_code == 401
-    assert "expired" in exc_info.value.detail.lower()
+    assert "просроч" in exc_info.value.detail.lower()
 
 
 def test_decode_access_token_rejects_wrong_type() -> None:
@@ -93,7 +93,7 @@ def test_decode_access_token_rejects_wrong_type() -> None:
     with pytest.raises(HTTPException) as exc_info:
         decode_access_token(token)
     assert exc_info.value.status_code == 401
-    assert exc_info.value.detail == "Invalid token type"
+    assert exc_info.value.detail == "Неверный тип токена"
 
 
 def test_decode_access_token_rejects_malformed_claims() -> None:
@@ -102,7 +102,7 @@ def test_decode_access_token_rejects_malformed_claims() -> None:
     with pytest.raises(HTTPException) as exc_info:
         decode_access_token(token)
     assert exc_info.value.status_code == 401
-    assert exc_info.value.detail == "Malformed token claims"
+    assert exc_info.value.detail == "Некорректные claims в токене"
 
 
 def test_ensure_student_access_platform_mode_allows_any_student() -> None:
@@ -253,7 +253,7 @@ async def test_verify_auth_context_unknown_user(monkeypatch: pytest.MonkeyPatch)
             credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials=token),
         )
     assert exc_info.value.status_code == 401
-    assert exc_info.value.detail == "Unknown or revoked user"
+    assert exc_info.value.detail == "Пользователь не найден или отозван"
 
 
 @pytest.mark.asyncio
@@ -272,7 +272,7 @@ async def test_verify_auth_context_unknown_platform_in_token(monkeypatch: pytest
             credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials=token),
         )
     assert exc_info.value.status_code == 401
-    assert "Unknown platform" in exc_info.value.detail
+    assert "Неизвестная платформа" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
